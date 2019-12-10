@@ -23,8 +23,6 @@ func TestNewRepository(t *testing.T) {
 		URL("ssh://git@github.com:alleeclark/git2consul.git"),
 		PullDir(testDir),
 		Username("sre"),
-		PublicKeyPath(sshPath+"publickey"),
-		PrivateKeyPath(sshPath+"privatekey"),
 	)
 
 	if collection.Repository == nil {
@@ -40,13 +38,11 @@ func TestNewRepository(t *testing.T) {
 
 func TestFetch(t *testing.T) {
 	opt := options{
-		branch:         "origin",
-		pullDirectory:  testDir,
-		url:            "ssh://git@github.com:alleeclark/git2consul.git",
-		username:       "sre",
-		publicKeyPath:  sshPath + "publickey",
-		privateKeyPath: sshPath + "privatekey",
-		fingerPrint:    []byte(""),
+		branch:        "origin",
+		pullDirectory: testDir,
+		url:           "ssh://git@github.com:alleeclark/git2consul.git",
+		username:      "sre",
+		fingerPrint:   []byte(""),
 	}
 	cloneOpts := CloneOptions(opt.username, opt.fingerPrint)
 	if cloneOpts == nil {
@@ -59,5 +55,4 @@ func TestFetch(t *testing.T) {
 		t.Log("Error Fetching repository")
 		t.Fail()
 	}
-
 }
