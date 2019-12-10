@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"git2consul/cmd/git2consul/command"
+	"git2consul/app/command"
 	"os"
 )
 

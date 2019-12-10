@@ -18,6 +18,7 @@ import (
 
 var resyncCommand = cli.Command{
 	Name:        "resync",
+	Aliases:     []string{"force"},
 	Usage:       "start a full resync",
 	ArgsUsage:   "[flags] <ref>",
 	Description: "fetch content changes from git and sync to consul",
