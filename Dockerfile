@@ -35,4 +35,4 @@ RUN go get github.com/prometheus/client_golang/prometheus/promauto
 RUN go get github.com/prometheus/client_golang/prometheus
 RUN go get github.com/prometheus/client_golang/prometheus/push
 RUN go get github.com/urfave/cli
-RUN go get github.com/libgit2/git2gos
+RUN go get github.com/libgit2/git2go
