@@ -3,12 +3,13 @@ package command
 import (
 	"bytes"
 	"fmt"
-	"git2consul/consul"
-	"git2consul/git"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"git2consul/consul"
+	"git2consul/git"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/push"

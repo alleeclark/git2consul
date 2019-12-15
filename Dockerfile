@@ -30,9 +30,6 @@ RUN cd $HOME && curl -fsSL https://github.com/libgit2/libgit2/archive/v0.28.1.ta
 
 WORKDIR ${GOPATH}/src/
 RUN mkdir git2consul
-RUN go get github.com/sirupsen/logrus
-RUN go get github.com/prometheus/client_golang/prometheus/promauto
-RUN go get github.com/prometheus/client_golang/prometheus
-RUN go get github.com/prometheus/client_golang/prometheus/push
-RUN go get github.com/urfave/cli
-RUN go get github.com/libgit2/git2go
+COPY . ${GOPATH}/src/git2consul
+WORKDIR ${GOPATH}/src/git2consul
+RUN go mod download
