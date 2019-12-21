@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"git2consul/consul"
 	"git2consul/git"
@@ -48,7 +47,7 @@ var resyncCommand = cli.Command{
 				if err != nil {
 					logrus.Warningf("Error could not connect to consul %v", err)
 				}
-				if ok, err := consulInteractor.Put(c.String("consul-path")+strings.SplitAfterN(c.String("git-dir"), "/", 3)[2], bytes.TrimSpace(contents)); err != nil || !ok {
+				if ok, err := consulInteractor.Put(c.String("consul-path")+c.String("git-dir"), bytes.TrimSpace(contents)); err != nil || !ok {
 					logrus.Warningf("Error adding contents %s %v ", path, err)
 					consulGitSyncedFailed.Inc()
 					if err := pusher.Collector(consulGitSyncedFailed).Gatherer(prometheus.DefaultGatherer).Push(); err != nil {
