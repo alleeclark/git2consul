@@ -204,8 +204,8 @@ func TransportConfig(o *consuloptions) *http.Transport {
 	}
 }
 
-//Content exist tells you where content exist or not at that path
-func (c *ConsulHandler) ContentExist(path string) (bool, error) {
+//IsExist tells you where content exist or not at that path
+func (c *ConsulHandler) IsExist(path string) (bool, error) {
 	kv := c.Client.KV()
 	_, _, err := kv.Get(path, &api.QueryOptions{
 		Token: c.opts.Config.Token,

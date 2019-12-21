@@ -36,7 +36,7 @@ var syncCommand = cli.Command{
 			case <-ticker.C:
 				logrus.Infoln("git2consul sync running running")
 				gitCollection.Ref, gitCollection.Commits = nil, nil
-				gitCollection = gitCollection.Fetch(git.CloneOptions(c.String("git-user"), []byte(c.String(("git-fingerprint-path")))), c.String("git=branch")).Filter(git.ByBranch(c.String("git-branch"))).Filter(git.ByDate(currentTime))
+				gitCollection = gitCollection.Fetch(git.CloneOptions(c.String("git-user"), []byte(c.String("git-fingerprint-path"))), c.String("git-branch")).Filter(git.ByBranch(c.String("git-branch"))).Filter(git.ByDate(currentTime))
 				consulGitReads.Inc()
 				if err := pusher.Collector(consulGitReads).Gatherer(prometheus.DefaultGatherer).Push(); err != nil {
 					fmt.Fprintln(os.Stderr, err)
