@@ -6,13 +6,14 @@ import (
 )
 
 const (
-	testDir = "/var/git2consul/test/"
-	sshPath = "/var/git2consul/config/"
+	testDir  = "/var/git2consul/test/"
+	sshPath  = "/var/git2consul/config/"
+	testRepo = "https://github.com/alleeclark/test-git2consul.git"
 )
 
 func TestOpenRepository(t *testing.T) {
 	repo := Open(testDir)
-	if repo == nil {
+	if repo.Repository == nil {
 		t.Log("Repo does not contain any attributes")
 		t.Fail()
 	}
@@ -20,9 +21,8 @@ func TestOpenRepository(t *testing.T) {
 
 func TestNewRepository(t *testing.T) {
 	collection := NewRepository(
-		URL("ssh://git@github.com:alleeclark/git2consul.git"),
+		URL(testRepo),
 		PullDir(testDir),
-		Username("sre"),
 	)
 
 	if collection.Repository == nil {
@@ -40,7 +40,7 @@ func TestFetch(t *testing.T) {
 	opt := options{
 		branch:        "origin",
 		pullDirectory: testDir,
-		url:           "ssh://git@github.com:alleeclark/git2consul.git",
+		url:           testRepo,
 		username:      "sre",
 		fingerPrint:   []byte(""),
 	}
