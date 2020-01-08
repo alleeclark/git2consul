@@ -23,7 +23,7 @@ var syncCommand = cli.Command{
 	Action: func(c *cli.Context) error {
 		pusher := push.New("git2consul", c.String("push-gateway"))
 		gitCollection := git.NewRepository(git.Username(c.GlobalString("git-user")), git.URL(c.GlobalString("git-url")), git.PullDir(c.GlobalString("git-dir")))
-		logrus.Infoln("cloned git repository")
+		logrus.Infoln("Cloned git repository")
 		consulGitReads.Inc()
 		if err := pusher.Collector(consulGitReads).Gatherer(prometheus.DefaultGatherer).Push(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -47,7 +47,7 @@ var syncCommand = cli.Command{
 				fileChanges := gitCollection.ListFileChanges(c.GlobalString("git-dir"))
 				consulInteractor, err := consul.NewConsulHandler(consul.ConsulConfig(c.GlobalString("consul-addr"), c.GlobalString("consul-token")))
 				if err != nil {
-					logrus.Warningf("failed connecting to consul %v", err)
+					logrus.Warningf("Failed connecting to consul %v", err)
 					consulGitConnectionFailed.Inc()
 					if err := pusher.Collector(consulGitConnectionFailed).Gatherer(prometheus.DefaultGatherer).Push(); err != nil {
 						fmt.Fprintln(os.Stderr, err)
@@ -59,7 +59,7 @@ var syncCommand = cli.Command{
 						consulPath = consulPath[1:len(consulPath)]
 					}
 					if ok, err := consulInteractor.Put(consulPath, bytes.TrimSpace(val)); err != nil || !ok {
-						logrus.Warningf("frror adding content %s %v ", key, err)
+						logrus.Warningf("Failed adding content %s %v ", key, err)
 						consulGitSyncedFailed.Inc()
 						if err := pusher.Collector(consulGitSyncedFailed).Gatherer(prometheus.DefaultGatherer).Push(); err != nil {
 							fmt.Fprintln(os.Stderr, err)

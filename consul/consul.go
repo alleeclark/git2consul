@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+    "github.com/sirupsen/logrus"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -35,12 +35,12 @@ func (c *ConsulHandler) Lock(key string) <-chan struct{} {
 func (c *ConsulHandler) Unlock(key string) bool {
 	lock, err := c.Client.LockKey(key)
 	if err != nil {
-		log.Warningln(err)
+		logrus.Warningln(err)
 		return false
 	}
 	for {
 		if err := lock.Unlock(); err != nil {
-			log.Warningf("Error occured unlocking %v", err)
+			logrus.Warningf("Error occured unlocking %v", err)
 			continue
 		}
 		break
@@ -58,7 +58,7 @@ var defaultConsulOptions = consuloptions{
 	MaxIdleConnsPerHost:   100,
 	DisableCompression:    true,
 	InsecureSkipVerify:    true,
-	Scheme:                "https",
+	Scheme:                "http",
 }
 
 //NewConsulHandler for interacting with consul client
