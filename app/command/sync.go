@@ -22,8 +22,8 @@ var syncCommand = cli.Command{
 	Flags:       []cli.Flag{&cli.Int64Flag{Name: "interval", Value: 5, Usage: "sync interval to consul in minutes"}},
 	Action: func(c *cli.Context) error {
 		pusher := push.New("git2consul", c.String("push-gateway"))
-		gitCollection := git.NewRepository(git.Username(c.String("git-user")), git.URL(c.String("git-url")), git.PullDir(c.String("git-dir")))
-		logrus.Infoln("Cloned git repository")
+		gitCollection := git.NewRepository(git.Username(c.GlobalString("git-user")), git.URL(c.GlobalString("git-url")), git.PullDir(c.GlobalString("git-dir")))
+		logrus.Infoln("cloned git repository")
 		consulGitReads.Inc()
 		if err := pusher.Collector(consulGitReads).Gatherer(prometheus.DefaultGatherer).Push(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -35,24 +35,31 @@ var syncCommand = cli.Command{
 			select {
 			case <-ticker.C:
 				logrus.Infoln("git2consul sync running running")
-				gitCollection.Ref, gitCollection.Commits = nil, nil
-				gitCollection = gitCollection.Fetch(git.CloneOptions(c.String("git-user"), []byte(c.String("git-fingerprint-path"))), c.String("git-branch")).Filter(git.ByBranch(c.String("git-branch"))).Filter(git.ByDate(currentTime))
+				if len(gitCollection.Commits) > 0 {
+					gitCollection.Commits = nil
+					gitCollection.Ref = nil
+				}
+				gitCollection = gitCollection.Fetch(git.CloneOptions(c.GlobalString("git-user"), []byte(c.GlobalString("git-fingerprint-path"))), c.GlobalString("git-branch")).Filter(git.ByBranch(c.GlobalString("git-branch"))).Filter(git.ByDate(currentTime))
 				consulGitReads.Inc()
 				if err := pusher.Collector(consulGitReads).Gatherer(prometheus.DefaultGatherer).Push(); err != nil {
 					fmt.Fprintln(os.Stderr, err)
 				}
-				fileChanges := gitCollection.ListFileChanges(c.String("git-dir"))
-				consulInteractor, err := consul.NewConsulHandler(consul.ConsulConfig(c.String("consul-addr"), c.String("consul-token")))
+				fileChanges := gitCollection.ListFileChanges(c.GlobalString("git-dir"))
+				consulInteractor, err := consul.NewConsulHandler(consul.ConsulConfig(c.GlobalString("consul-addr"), c.GlobalString("consul-token")))
 				if err != nil {
-					logrus.Warningf("Error connecting to consul %v", err)
+					logrus.Warningf("failed connecting to consul %v", err)
 					consulGitConnectionFailed.Inc()
 					if err := pusher.Collector(consulGitConnectionFailed).Gatherer(prometheus.DefaultGatherer).Push(); err != nil {
 						fmt.Fprintln(os.Stderr, err)
 					}
 				}
 				for key, val := range fileChanges {
-					if ok, err := consulInteractor.Put(key, bytes.TrimSpace(val)); err != nil || !ok {
-						logrus.Warningf("Error adding content %s %v ", key, err)
+					consulPath := c.GlobalString("consul-path") + key
+					if consulPath[0:1] == "/" {
+						consulPath = consulPath[1:len(consulPath)]
+					}
+					if ok, err := consulInteractor.Put(consulPath, bytes.TrimSpace(val)); err != nil || !ok {
+						logrus.Warningf("frror adding content %s %v ", key, err)
 						consulGitSyncedFailed.Inc()
 						if err := pusher.Collector(consulGitSyncedFailed).Gatherer(prometheus.DefaultGatherer).Push(); err != nil {
 							fmt.Fprintln(os.Stderr, err)
