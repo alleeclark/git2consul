@@ -16,7 +16,7 @@ RUN cd $HOME && curl -fsSL https://github.com/libssh2/libssh2/archive/libssh2-1.
 	&& make install \
 	&& ldconfig
 
-#need to clone a version of git2go that i host
+# need to clone a version of git2go that i host
 # Build libgit2 from source
 RUN cd $HOME && curl -fsSL https://github.com/libgit2/libgit2/archive/v0.28.1.tar.gz -o v0.28.1.tar.gz \
  	&& tar xvf v0.28.1.tar.gz -C libgit2 \
@@ -33,3 +33,4 @@ RUN mkdir git2consul
 COPY . ${GOPATH}/src/git2consul
 WORKDIR ${GOPATH}/src/git2consul
 RUN go mod download
+RUN go install

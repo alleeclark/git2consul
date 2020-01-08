@@ -20,7 +20,7 @@ func New() *cli.App {
 		cli.StringFlag{Name: "consul-path", Value: "", Usage: "consul path to sync "},
 		cli.StringFlag{Name: "consul-token", Value: "somestillytoken", EnvVar: "CONSUL_TOKEN", Usage: "consul address to write to. Will use agent unless an env is set of CONSUL_TOKEN"},
 		cli.BoolFlag{Name: "metrics", Usage: "send metrics to pushgateway", EnvVar: "GIT2CONSUL_METRICS"},
-		cli.StringFlag{Name: "pushgateway-addr", Value: "localhost:9091", Usage: "push gateway address for metrics"},
+		cli.StringFlag{Name: "pushgateway-addr", Value: "localhost:9091", Usage: "push gateway address for metrics", Hidden: true},
 	}
 	app.Commands = []cli.Command{syncCommand, resyncCommand}
 	return app
