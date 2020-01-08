@@ -61,7 +61,7 @@ func NewRepository(opt ...GitOptions) *Collection {
 	}
 	cloneOpts := CloneOptions(opts.username, opts.fingerPrint)
 	repo, err := git2go.Clone(opts.url, opts.pullDirectory, cloneOpts)
-	if err != nil && strings.Contains(err.Error(), "Exists and is not an empty directory failed") {
+	if err != nil && strings.Contains(err.Error(), "exists and is not an empty directory") {
 		logrus.Debug("Repository already found, so opening it")
 		return Open(opts.pullDirectory)
 	} else if err != nil || repo == nil {

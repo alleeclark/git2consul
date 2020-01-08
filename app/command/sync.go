@@ -15,7 +15,7 @@ var syncCommand = cli.Command{
 	Usage:       "start a syncing frequency",
 	ArgsUsage:   "[flags] <ref>",
 	Description: "fetch contents changes and sync to consul",
-	Flags:       []cli.Flag{&cli.Int64Flag{Name: "interval", Value: 5, Usage: "sync interval to consul in minutes"}},
+	Flags:       []cli.Flag{&cli.Int64Flag{Name: "interval", Value: 20, Usage: "sync interval to consul in seconds"}},
 	Action: func(c *cli.Context) error {
 		defer func() {
 			if c.GlobalBool("metrics") {
@@ -25,7 +25,7 @@ var syncCommand = cli.Command{
 		gitCollection := git.NewRepository(git.Username(c.GlobalString("git-user")), git.URL(c.GlobalString("git-url")), git.PullDir(c.GlobalString("git-dir")))
 		logrus.Infoln("Cloned git repository")
 		consulGitReads.Inc()
-		ticker := time.NewTicker(time.Duration(c.Int64("interval")) * time.Minute)
+		ticker := time.NewTicker(time.Duration(c.Int64("interval")) * time.Second)
 		currentTime := time.Now()
 		quit := make(chan struct{})
 		for {
