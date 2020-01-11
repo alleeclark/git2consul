@@ -11,7 +11,7 @@ resources:
 variables:
   tag: '$(Build.BuildId)'
   imageName:  alleeclark/git2consul
-  dockerHub: 'Docker Hub'
+  dockerHub: 'git2consul'
 
 stages:
 - stage: Build
