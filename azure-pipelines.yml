@@ -1,7 +1,3 @@
-# Docker
-# Build a Docker image 
-# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
-
 trigger:
 - azure-pipelines
 
@@ -26,7 +22,7 @@ stages:
       displayName: Build an image
       inputs:
         command: build
-        repository: $(imageName):$(tag)
+        repository: $(imageName)
         dockerfile: '$(Build.SourcesDirectory)/Dockerfile'
         tags: |
           $(tag)
