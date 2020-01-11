@@ -3,13 +3,15 @@
 # https://docs.microsoft.com/azure/devops/pipelines/languages/docker
 
 trigger:
-- master
+- azure-pipelines
 
 resources:
 - repo: self
 
 variables:
   tag: '$(Build.BuildId)'
+  imageName:  alleeclark/git2consul
+  dockerHub: dockerhub.com
 
 stages:
 - stage: Build
