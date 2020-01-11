@@ -1,9 +1,12 @@
 package command
 
 import (
+	"os"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"os"
+	"github.com/prometheus/client_golang/prometheus/push"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -55,5 +58,15 @@ func init() {
 		registry.Register(consulGitSyncedFailed)
 		registry.Register(consulGitConnectionFailed)
 		registry.Register(consulGitReads)
+	}
+}
+
+func pushMetrics(address string) {
+	gauges := append([]prometheus.Gauge{}, consulGitReads, consulGitConnectionFailed, consulGitSyncedFailed, consulGitSynced)
+	pusher := push.New("git2consul", address)
+	for _, gauge := range gauges {
+		if err := pusher.Collector(gauge).Gatherer(prometheus.DefaultGatherer).Push(); err != nil {
+			logrus.Warningln(err)
+		}
 	}
 }

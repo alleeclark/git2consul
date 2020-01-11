@@ -3,8 +3,9 @@ package git
 import (
 	"io/ioutil"
 	"os"
+	"strings"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	git2go "github.com/alleeclark/git2go"
 )
@@ -12,17 +13,17 @@ import (
 //Fetch remote for a given branch
 func (c *Collection) Fetch(opts *git2go.CloneOptions, branchName string) *Collection {
 	if _, err := os.Stat(c.Repository.Path()); os.IsNotExist(err) {
-		log.Warningf("Unable to find path of the local repository of branch %s to clone", branchName)
+		logrus.Warningf("Unable to find path of the local repository of branch %s to clone", branchName)
 		return nil
 	}
 	remote, err := c.Repository.Remotes.Lookup(branchName)
 	if err != nil {
-		log.Warningf("Error looking up remote repository %v", err)
+		logrus.Warningf("Failed looking up remote repository %v", err)
 		return c
 	}
 	var refspecs []string
 	if err = remote.Fetch(refspecs, opts.FetchOptions, ""); err != nil {
-		log.Warningf("Error fetching remote repository %v", err)
+		logrus.Warningf("Failed fetching remote repository %v", err)
 		return c
 	}
 	return c
@@ -32,7 +33,7 @@ func (c *Collection) Fetch(opts *git2go.CloneOptions, branchName string) *Collec
 func Open(repoPath string) *Collection {
 	repo, err := git2go.OpenRepository(repoPath)
 	if err != nil {
-		log.Warningf("Error opening repository %v", err)
+		logrus.Warningf("Failed opening repository %v", err)
 		return nil
 	}
 	return &Collection{nil, nil, repo}
@@ -45,7 +46,7 @@ func NewRepository(opt ...GitOptions) *Collection {
 	for _, f := range opt {
 		err := f(&opts)
 		if err != nil {
-			log.Warningf("Error setting option %v", err)
+			logrus.Warningf("Failed setting option %v", err)
 			return nil
 		}
 	}
@@ -53,15 +54,18 @@ func NewRepository(opt ...GitOptions) *Collection {
 	if os.IsExist(err) {
 		return Open(opts.pullDirectory)
 	} else if err != nil {
-		log.Warningf("Error finding repo path %s: %v so creating the directory", opts.pullDirectory, err)
+		logrus.Debug("Did not find an existing repo %s: %v so creating the directory", opts.pullDirectory, err)
 		if mkirErr := os.MkdirAll(opts.pullDirectory, 0777); mkirErr != nil {
-			log.Warningf("Error creating the directory %v", err)
+			logrus.Warningf("Failed creating the directory %v", err)
 		}
 	}
 	cloneOpts := CloneOptions(opts.username, opts.fingerPrint)
 	repo, err := git2go.Clone(opts.url, opts.pullDirectory, cloneOpts)
-	if err != nil {
-		log.Warningf("Error cloning url %s %v", opts.url, err)
+	if err != nil && strings.Contains(err.Error(), "exists and is not an empty directory") {
+		logrus.Debug("Repository already found, so opening it")
+		return Open(opts.pullDirectory)
+	} else if err != nil || repo == nil {
+		logrus.Warningf("Failed cloning url %s %v", opts.url, err)
 		return nil
 	}
 	return &Collection{
@@ -75,12 +79,12 @@ type WithIgnoredFiles map[string][]byte
 //ListFileChanges returns a map of files that have changed based on filtered commmits found along with the contents
 func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredFiles) map[string][]byte {
 	if len(c.Commits) < 1 {
-		log.Infoln("No commits found to sync to contents")
+		logrus.Infoln("No commits found to sync to contents")
 		return nil
 	}
 	diffOptions, err := git2go.DefaultDiffOptions()
 	if err != nil {
-		log.Warningf("Error getting diff options %v", err)
+		logrus.Warningf("Failed getting diff options %v", err)
 		return nil
 	}
 	oldTree, err := c.Commits[0].Tree()
@@ -94,26 +98,26 @@ func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredF
 
 	diff, err := c.DiffTreeToTree(oldTree, newTree, &diffOptions)
 	if err != nil {
-		log.Warningf("Error diffing tree %v", err)
+		logrus.Warningf("Failed diffing tree %v", err)
 		return nil
 	}
 
 	numOfDeltas, err := diff.NumDeltas()
 	if err != nil {
-		log.Warningf("Error getting num of deltas %v", err)
+		logrus.Warningf("Failed getting num of deltas %v", err)
 		return nil
 	}
 	fileChanges := make(map[string][]byte, numOfDeltas)
 	for d := 0; d < numOfDeltas; d++ {
 		diffDelta, err := diff.GetDelta(d)
 		if err != nil {
-			log.Warningf("Error getting diff at %d %v", d, err)
+			logrus.Warningf("Failed getting diff at %d %v", d, err)
 		}
 		if len(ignoreFiles) > 0 {
 			if _, ok := ignoreFiles[0][diffDelta.NewFile.Path]; !ok {
 				contents, err := ioutil.ReadFile(pullDir + "/" + diffDelta.NewFile.Path)
 				if err != nil || os.IsNotExist(err) {
-					log.Warningf("Did not map contents %s becuase it does not exist %v", diffDelta.NewFile.Path, err)
+					logrus.Warningf("did not map contents %s becuase it does not exist %v", diffDelta.NewFile.Path, err)
 					fileChanges[diffDelta.NewFile.Path] = nil
 				}
 				fileChanges[diffDelta.NewFile.Path] = contents
@@ -143,7 +147,7 @@ func CloneOptions(username string, gitRSAFingerprint []byte) *git2go.CloneOption
 		certificateCheckCallback := func(cert *git2go.Certificate, valid bool, hostname string) git2go.ErrorCode {
 			for i := 0; i < len(gitRSAFingerprint); i++ {
 				if cert.Hostkey.HashMD5[i] != gitRSAFingerprint[i] {
-					log.Warningln("Remote certificate invalid")
+					logrus.Warningln("Remote certificate invalid")
 					return git2go.ErrUser
 				}
 			}
@@ -155,10 +159,18 @@ func CloneOptions(username string, gitRSAFingerprint []byte) *git2go.CloneOption
 		}
 
 	}
+
 	cloneOptions := &git2go.CloneOptions{}
 	cloneOptions.FetchOptions = &git2go.FetchOptions{}
 	cloneOptions.CheckoutOpts = &git2go.CheckoutOpts{}
 	cloneOptions.CheckoutOpts.Strategy = 1
 	cloneOptions.FetchOptions.RemoteCallbacks = cbs
 	return cloneOptions
+}
+
+func withSSH(username, publicKeyPath, privateKeyPath, passharse string) (int, git2go.Cred) {
+	if username != "" && publicKeyPath != "" && privateKeyPath != "" && passharse != "" {
+		return git2go.NewCredSshKey(username, publicKeyPath, privateKeyPath, passharse)
+	}
+	return git2go.NewCredSshKeyFromAgent(username)
 }
