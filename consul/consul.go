@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-    "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -234,4 +234,21 @@ func (c *ConsulHandler) Put(path string, value []byte) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+// Delete a key from consul
+func (c *ConsulHandler) Delete(path string) (bool, error) {
+	_, err := c.Client.KV().Delete(path, &api.WriteOptions{Token: c.opts.Config.Token})
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (c *ConsulHandler) ServiceRegistration(name string, tags ...string) error {
+	return c.Client.Agent().ServiceRegister(&api.AgentServiceRegistration{Name: name, Tags: tags})
+}
+
+func (c *ConsulHandler) ServiceDeregistation(name string) error {
+	return c.Client.Agent().ServiceDeregister(name)
 }

@@ -33,7 +33,7 @@ var resyncCommand = cli.Command{
 		consulGitReads.Inc()
 		err := filepath.Walk(c.GlobalString("git-dir"), func(path string, info os.FileInfo, err error) error {
 			if err != nil {
-				logrus.WithField("git-dir", c.GlobalString("git-dir")).Fatalf("failed to walk the directory %v", err)
+				logrus.WithField("git-dir", c.GlobalString("git-dir")).Fatalf("Failed to walk the directory %v", err)
 				return err
 			}
 			if !info.IsDir() {

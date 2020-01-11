@@ -11,14 +11,6 @@ const (
 	testRepo = "https://github.com/alleeclark/test-git2consul.git"
 )
 
-func TestOpenRepository(t *testing.T) {
-	repo := Open(testDir)
-	if repo.Repository == nil {
-		t.Log("Repo does not contain any attributes")
-		t.Fail()
-	}
-}
-
 func TestNewRepository(t *testing.T) {
 	collection := NewRepository(
 		URL(testRepo),
@@ -32,6 +24,14 @@ func TestNewRepository(t *testing.T) {
 	_, err := os.Stat(testDir)
 	if os.IsNotExist(err) {
 		t.Logf("Pull directory does not exist %v", err)
+		t.Fail()
+	}
+}
+
+func TestOpenRepository(t *testing.T) {
+	repo := Open(testDir)
+	if repo.Repository == nil {
+		t.Log("Repo does not contain any attributes")
 		t.Fail()
 	}
 }

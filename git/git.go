@@ -159,10 +159,18 @@ func CloneOptions(username string, gitRSAFingerprint []byte) *git2go.CloneOption
 		}
 
 	}
+
 	cloneOptions := &git2go.CloneOptions{}
 	cloneOptions.FetchOptions = &git2go.FetchOptions{}
 	cloneOptions.CheckoutOpts = &git2go.CheckoutOpts{}
 	cloneOptions.CheckoutOpts.Strategy = 1
 	cloneOptions.FetchOptions.RemoteCallbacks = cbs
 	return cloneOptions
+}
+
+func withSSH(username, publicKeyPath, privateKeyPath, passharse string) (int, git2go.Cred) {
+	if username != "" && publicKeyPath != "" && privateKeyPath != "" && passharse != "" {
+		return git2go.NewCredSshKey(username, publicKeyPath, privateKeyPath, passharse)
+	}
+	return git2go.NewCredSshKeyFromAgent(username)
 }
