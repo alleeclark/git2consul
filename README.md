@@ -1,6 +1,6 @@
 # go-git2consul
 
-[![Build Status](https://dev.azure.com/alleeclark0813/git2consul/_apis/build/status/alleeclark.git2consul?branchName=azure-pipelines)](https://dev.azure.com/alleeclark0813/git2consul/_build/latest?definitionId=1&branchName=azure-pipelines)
+[![Build Status](https://dev.azure.com/alleeclark0813/git2consul/_apis/build/status/alleeclark.git2consul?branchName=azure-pipelines)](https://dev.azure.com/alleeclark0813/git2consul/_build/latest?definitionId=1&branchName=v0.0.2)
 
 **Description**:  git2consul syncs content from a git repo into consul.
 
