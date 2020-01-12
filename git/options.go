@@ -70,6 +70,7 @@ func PrivateKeyPath(path string) GitOptions {
 	}
 }
 
+//PassphrasePath to read from
 func PassphrasePath(path string) GitOptions {
 	return func(o *options) error {
 		passphrase, err := ioutil.ReadFile(path)
@@ -81,7 +82,8 @@ func PassphrasePath(path string) GitOptions {
 	}
 }
 
-func GitRSAFingerPrintPath(path string) GitOptions {
+//RSAFingerPrintPath to read from
+func RSAFingerPrintPath(path string) GitOptions {
 	return func(o *options) error {
 		fingerPrint, err := ioutil.ReadFile(o.gitRSAFingerprintPath)
 		// need to add and test other edge cases
