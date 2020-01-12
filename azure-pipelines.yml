@@ -29,5 +29,6 @@ stages:
         command: buildAndPush
         repository: $(imageName)
         dockerfile: '$(Build.SourcesDirectory)/docker/Dockerfile'
+        buildContext: $(Build.SourcesDirectory)
         tags: |
           $(tag)
