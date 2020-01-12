@@ -1,27 +1,32 @@
 trigger:
-- v0.0.2
+- master
 
 resources:
 - repo: self
 
 variables:
-  tag: 'v0.0.2'
+  tag: 'latest'
   imageName: dockerhub.com/alleeclark/git2consul
   dockerHub: git2consul
 
 stages:
-- stage: Build
-  displayName: Build image
+- stage: Publish
+  displayName: Publish image
   jobs:  
-  - job: Build
+  - job: BuildandPublish
     displayName: git2consul
     pool:
       vmImage: 'ubuntu-latest'
     steps:
     - task: Docker@2
-      displayName: Build
+      displayName: Login to Docker Hub
       inputs:
-        command: build
+        command: login
+        containerRegistry: $(dockerHub)
+    - task: Docker@2
+      displayName: Build and Push image
+      inputs:
+        command: buildAndPush
         repository: alleeclark/git2consul
         dockerfile: '$(Build.SourcesDirectory)/docker/Dockerfile'
         buildContext: $(Build.SourcesDirectory)
