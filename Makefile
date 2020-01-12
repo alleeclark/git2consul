@@ -4,7 +4,7 @@ ARGS ?= --consul-addr="172.17.0.1:8500" operator register
 
 .PHONY: images
 images:
-	sudo docker build -t git2consul:$(PACKAGE_VERSION) -f docker/Dockerfile ./
+	docker build -t git2consul:$(PACKAGE_VERSION) -f docker/Dockerfile ./
 
 .PHONY: publish
 publish: images
