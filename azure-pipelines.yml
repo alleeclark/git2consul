@@ -1,11 +1,11 @@
 trigger:
-- azure-pipelines
+- v0.0.2
 
 resources:
 - repo: self
 
 variables:
-  tag: '$(Build.BuildId)'
+  tag: 'v0.0.2'
   imageName: dockerhub.com/alleeclark/git2consul
   dockerHub: git2consul
 
