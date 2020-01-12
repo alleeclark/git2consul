@@ -137,7 +137,7 @@ func ByBranch(name string) FilterFunc {
 	return func(c *Collection) bool {
 		branch, err := c.Repository.LookupBranch(name, git2go.BranchRemote)
 		if err != nil {
-			log.Warningf("failed finding branch %s %v", name, err)
+			log.Warningf("Failed finding branch %s %v", name, err)
 			return false
 		}
 		c.Ref = branch.Reference
@@ -149,7 +149,7 @@ func ByBranch(name string) FilterFunc {
 func ByDate(date time.Time) FilterFunc {
 	return func(c *Collection) bool {
 		if c.Ref == nil {
-			log.Warningln("failed finding ref of the current git collection. Make sure the branch is pushed to origin")
+			log.Warningln("Failed finding ref of the current git collection. Make sure the branch is pushed to origin")
 			return false
 		}
 		revWalk, err := c.Repository.Walk()
@@ -169,7 +169,7 @@ func ByDate(date time.Time) FilterFunc {
 			for revWalk.Next(id) == nil {
 				g, err := c.Repository.LookupCommit(id)
 				if err != nil {
-					log.Warningf("failed finding commit id %v %v", id, err)
+					log.Warningf("Failed finding commit id %v %v", id, err)
 				}
 				if g.Author().When.Before(date) {
 					break
