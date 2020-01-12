@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+//ConsulHandler interacts with the consul client
 type ConsulHandler struct {
 	Client *api.Client
 	opts   consuloptions
@@ -61,8 +62,8 @@ var defaultConsulOptions = consuloptions{
 	Scheme:                "http",
 }
 
-//NewConsulHandler for interacting with consul client
-func NewConsulHandler(opt ...ConsulOption) (consulHandler *ConsulHandler, err error) {
+//NewHandler for interacting with consul client
+func NewHandler(opt ...ConsulOption) (consulHandler *ConsulHandler, err error) {
 	opts := defaultConsulOptions
 	for _, f := range opt {
 		err := f(&opts)
@@ -100,8 +101,8 @@ type consuloptions struct {
 //ConsulOption decorator
 type ConsulOption func(*consuloptions) error
 
-//ConsulConfig sets consul options for client
-func ConsulConfig(address, token string) ConsulOption {
+//Config sets consul options for client
+func Config(address, token string) ConsulOption {
 	return func(o *consuloptions) error {
 		if token != "" {
 			o.Config = &api.Config{
@@ -245,10 +246,12 @@ func (c *ConsulHandler) Delete(path string) (bool, error) {
 	return true, nil
 }
 
+// ServiceRegistration registers a service by name
 func (c *ConsulHandler) ServiceRegistration(name string, tags ...string) error {
 	return c.Client.Agent().ServiceRegister(&api.AgentServiceRegistration{Name: name, Tags: tags})
 }
 
+// ServiceDeregistation deregisters a service by name
 func (c *ConsulHandler) ServiceDeregistation(name string) error {
 	return c.Client.Agent().ServiceDeregister(name)
 }

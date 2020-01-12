@@ -39,7 +39,7 @@ var syncCommand = cli.Command{
 				gitCollection = gitCollection.Fetch(git.CloneOptions(c.GlobalString("git-user"), []byte(c.GlobalString("git-fingerprint-path"))), c.GlobalString("git-branch")).Filter(git.ByBranch(c.GlobalString("git-branch"))).Filter(git.ByDate(currentTime))
 				consulGitReads.Inc()
 				fileChanges := gitCollection.ListFileChanges(c.GlobalString("git-dir"))
-				consulInteractor, err := consul.NewConsulHandler(consul.ConsulConfig(c.GlobalString("consul-addr"), c.GlobalString("consul-token")))
+				consulInteractor, err := consul.NewHandler(consul.Config(c.GlobalString("consul-addr"), c.GlobalString("consul-token")))
 				if err != nil {
 					logrus.Warningf("Failed connecting to consul %v", err)
 					consulGitConnectionFailed.Inc()

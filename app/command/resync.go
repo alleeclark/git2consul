@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"git2consul/consul"
@@ -19,6 +20,22 @@ var resyncCommand = cli.Command{
 	Usage:       "start a full resync",
 	ArgsUsage:   "[flags] <ref>",
 	Description: "fetch content changes from git and sync to consul",
+	Flags: []cli.Flag{
+		cli.StringFlag{Name: "pre-shell", Value: "", Usage: "shell command to execute before syncing", Hidden: true},
+		cli.StringFlag{Name: "post-shell", Value: "", Usage: "shell command to execute after syncing", Hidden: true},
+	},
+	Before: func(c *cli.Context) error {
+		if c.String("pre-shell") != "" {
+			return exec.Command(c.String("shell")).Run()
+		}
+		return nil
+	},
+	After: func(c *cli.Context) error {
+		if c.String("post-shell") != "" {
+			return exec.Command(c.String("post-shell")).Run()
+		}
+		return nil
+	},
 	Action: func(c *cli.Context) error {
 		defer func() {
 			if c.GlobalBool("metrics") {
@@ -41,7 +58,7 @@ var resyncCommand = cli.Command{
 				if err != nil {
 					logrus.Warningf("Failed reading file %s: %v", path, err)
 				}
-				consulInteractor, err := consul.NewConsulHandler(consul.ConsulConfig(c.GlobalString("consul-addr"), c.GlobalString("consul-token")))
+				consulInteractor, err := consul.NewHandler(consul.Config(c.GlobalString("consul-addr"), c.GlobalString("consul-token")))
 				consulGitConnectionFailed.Inc()
 				if err != nil {
 					logrus.Warningf("Failed connecting to consul %v", err)
