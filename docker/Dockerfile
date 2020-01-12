@@ -32,5 +32,5 @@ RUN mkdir git2consul
 COPY . ${GOPATH}/src/git2consul
 WORKDIR ${GOPATH}/src/git2consul
 RUN go mod download
-RUN go build go install
+RUN go install
 ENTRYPOINT [ "git2consul" ]
