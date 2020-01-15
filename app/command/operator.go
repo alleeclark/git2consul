@@ -11,7 +11,7 @@ var operatorCommand = cli.Command{
 	Usage:       "start a syncing frequency",
 	ArgsUsage:   "[flags] <ref>",
 	Description: "fetch contents changes and sync to consul",
-	Flags:       []cli.Flag{&cli.StringFlag{Name: "name", Value: "git2consul", Usage: "name of the service to register in consul"}},
+	Flags:       []cli.Flag{&cli.StringFlag{Name: "service-id", Value: "git2consul", Usage: "name of the service to register in consul"}},
 	Subcommands: []cli.Command{
 		cli.Command{
 			Name: "register",
@@ -20,7 +20,7 @@ var operatorCommand = cli.Command{
 				if err != nil {
 					return err
 				}
-				return consulInteractor.ServiceRegistration(c.GlobalString("name"))
+				return consulInteractor.ServiceRegistration(c.GlobalString("service-id"))
 
 			},
 		},
@@ -31,7 +31,7 @@ var operatorCommand = cli.Command{
 				if err != nil {
 					return err
 				}
-				return consulInteractor.ServiceDeregistation(c.GlobalString("name"))
+				return consulInteractor.ServiceDeregistation(c.GlobalString("service-id"))
 			},
 		},
 		cli.Command{
@@ -43,7 +43,7 @@ var operatorCommand = cli.Command{
 				if err != nil {
 					return err
 				}
-				consulInteractor.Unlock(c.GlobalString("name"))
+				consulInteractor.Unlock(c.GlobalString("service-id"))
 				return nil
 			},
 		},
@@ -57,7 +57,7 @@ var operatorCommand = cli.Command{
 				if err != nil {
 					return err
 				}
-				consulInteractor.Lock(c.GlobalString("name"))
+				consulInteractor.Lock(c.GlobalString("service-id"))
 				return nil
 			},
 		},

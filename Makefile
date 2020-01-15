@@ -1,6 +1,7 @@
 PACKAGE_VERSION ?= $(shell git describe --always --tags)
 REGISTRY ?= dockerhub.com/alleeclark/git2consul
 ARGS ?= --consul-addr="172.17.0.1:8500" operator register
+LIBGITVERSION = v0.28.1
 
 .PHONY: images
 images:
