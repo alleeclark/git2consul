@@ -1,6 +1,6 @@
 # go-git2consul
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/alleeclark/git2consul)](https://goreportcard.com/report/github.com/alleeclark/git2consul) [![Build Status](https://dev.azure.com/alleeclark0813/git2consul/_apis/build/status/alleeclark.git2consul?branchName=azure-pipelines)](https://dev.azure.com/alleeclark0813/git2consul/_build/latest?definitionId=1&branchName=v0.0.2) [![](https://godoc.org/github.com/nathany/looper?status.svg)](http://godoc.org/github.com/alleeclark/git2consul)
+[![Go Report Card](https://goreportcard.com/badge/github.com/alleeclark/git2consul)](https://goreportcard.com/report/github.com/alleeclark/git2consul) [![Build Status](https://dev.azure.com/alleeclark0813/git2consul/_apis/build/status/alleeclark.git2consul?branchName=v0.0.2)](https://dev.azure.com/alleeclark0813/git2consul/_build/latest?definitionId=1&branchName=v0.0.2) [![](https://godoc.org/github.com/nathany/looper?status.svg)](http://godoc.org/github.com/alleeclark/git2consul)
 
 
 **Description**:  git2consul syncs content from a git repo into consul.
