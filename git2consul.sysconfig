@@ -1,0 +1,1 @@
+EXTRA_ARGS=-consul-addr="172.17.0.1:8500" --git-url="https://github.com/alleeclark/test-git2consul.git" --git-branch="master" sync --since 86400
