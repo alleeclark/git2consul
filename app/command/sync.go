@@ -27,7 +27,6 @@ var syncCommand = cli.Command{
 		consulGitReads.Inc()
 		since := time.Second * -time.Duration(c.Int64("since"))
 		past := time.Now().Add(since)
-		logrus.Infof("past time is %s", past.UTC().String())
 		gitCollection = gitCollection.Fetch(git.CloneOptions(c.GlobalString("git-user"), []byte(c.GlobalString("git-fingerprint-path"))), c.GlobalString("git-remote")).Filter(git.ByBranch(c.GlobalString("git-branch"))).Filter(git.ByDate(past.UTC()))
 		consulGitReads.Inc()
 		fileChanges := gitCollection.ListFileChanges(c.GlobalString("git-dir"))

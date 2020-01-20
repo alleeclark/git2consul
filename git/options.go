@@ -8,7 +8,6 @@ import (
 	"time"
 
 	git2go "github.com/alleeclark/git2go"
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -178,7 +177,6 @@ func ByDate(date time.Time) FilterFunc {
 			if err != nil {
 				log.Warningf("Failed finding commit id %v %v", id, err)
 			}
-			logrus.Info(commit.Author().When.UTC().String())
 			if commit.Author().When.UTC().Before(date) {
 				if oldCount < 1 {
 					c.Commits = append(c.Commits, commit)
