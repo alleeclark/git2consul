@@ -13,7 +13,7 @@ import (
 //Fetch remote for a given branch
 func (c *Collection) Fetch(opts *git2go.CloneOptions, remoteName string) *Collection {
 	if _, err := os.Stat(c.Repository.Path()); os.IsNotExist(err) {
-		logrus.Warningf("Unable to find path of the local repository of branch %s to clone", branchName)
+		logrus.Warningf("Unable to find path of the local repository of branch %s to clone", remoteName)
 		return nil
 	}
 	remote, err := c.Repository.Remotes.Lookup(remoteName)
@@ -78,8 +78,12 @@ type WithIgnoredFiles map[string][]byte
 
 //ListFileChanges returns a map of files that have changed based on filtered commmits found along with the contents
 func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredFiles) map[string][]byte {
-	if len(c.Commits) < 1 {
+	if len(c.Commits) == 0 {
 		logrus.Infoln("No commits found to sync contents %d", len(c.Commits))
+		return nil
+	}
+	if len(c.Commits) == 1 {
+		logrus.Warningf("Not enough deltas in the tree to continue")
 		return nil
 	}
 	oldTree, err := c.Commits[0].Tree()
@@ -90,7 +94,6 @@ func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredF
 	if err != nil {
 		return nil
 	}
-
 	diffOptions, err := git2go.DefaultDiffOptions()
 	if err != nil {
 		logrus.Warningf("Failed getting diff options %v", err)
@@ -114,10 +117,10 @@ func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredF
 	}
 
 	fileChanges := make(map[string][]byte, numOfDeltas)
-	for d := 0; d < numOfDeltas; d++ {
-		diffDelta, err := diff.GetDelta(d)
+	for delta := 0; delta < numOfDeltas; delta++ {
+		diffDelta, err := diff.GetDelta(delta)
 		if err != nil {
-			logrus.Warningf("Failed getting diff at %d %v", d, err)
+			logrus.Warningf("Failed getting diff at %d %v", delta, err)
 		}
 		if len(ignoreFiles) > 0 {
 			if _, ok := ignoreFiles[0][diffDelta.NewFile.Path]; !ok {

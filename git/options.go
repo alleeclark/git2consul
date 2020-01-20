@@ -172,6 +172,7 @@ func ByDate(date time.Time) FilterFunc {
 		revWalk.Sorting(git2go.SortTime)
 		revWalk.SimplifyFirstParent()
 		id := &(git2go.Oid{})
+		oldCount := 0
 		for revWalk.Next(id) == nil {
 			commit, err := c.Repository.LookupCommit(id)
 			if err != nil {
@@ -179,6 +180,10 @@ func ByDate(date time.Time) FilterFunc {
 			}
 			logrus.Info(commit.Author().When.UTC().String())
 			if commit.Author().When.UTC().Before(date) {
+				if oldCount < 1 {
+					c.Commits = append(c.Commits, commit)
+					oldCount++
+				}
 				continue
 			}
 			c.Commits = append(c.Commits, commit)
