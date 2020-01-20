@@ -12,9 +12,13 @@
 
 ## Usage
 
+At least two commits are needed in the repository to be able to diff against the latest tree and previous tree.
+
+git2consul does not yet manage it's sycing service in the background. You must run it in a cron and use the same cron frequency as the `--since` flag. I will write a systemD service and timer file to help get started.
+
 Run a sync from git2consul on a 1 second interval. This will sync only new commits from git into Consul.
 ```bash
-git2consul --consul-addr="172.17.0.1:8500" --git-url="https://github.com/alleeclark/test-git2consul.git" sync --interval 1
+git2consul --consul-addr="172.17.0.1:8500" --git-url="https://github.com/alleeclark/test-git2consul.git" sync --since 1
 ```
 
 Register git2consul as a consul service

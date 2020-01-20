@@ -41,7 +41,7 @@ func (c *ConsulHandler) Unlock(key string) bool {
 	}
 	for {
 		if err := lock.Unlock(); err != nil {
-			logrus.Warningf("Error occured unlocking %v", err)
+			logrus.Warningf("Error occurred unlocking %v", err)
 			continue
 		}
 		break
