@@ -32,7 +32,7 @@ func (c *ConsulHandler) Lock(key string) <-chan struct{} {
 	return lockCh
 }
 
-//Unlock runs until sucessful
+//Unlock runs until successful
 func (c *ConsulHandler) Unlock(key string) bool {
 	lock, err := c.Client.LockKey(key)
 	if err != nil {
@@ -186,7 +186,7 @@ func InsecureSkipVerify(insecureSkipVerify bool) ConsulOption {
 	}
 }
 
-// TransportConfig sets options for http transport
+//TransportConfig sets options for http transport
 func TransportConfig(o *consuloptions) *http.Transport {
 	return &http.Transport{
 		Dial: (&net.Dialer{
@@ -237,7 +237,7 @@ func (c *ConsulHandler) Put(path string, value []byte) (bool, error) {
 	return true, nil
 }
 
-// Delete a key from consul
+//Delete a key from consul
 func (c *ConsulHandler) Delete(path string) (bool, error) {
 	_, err := c.Client.KV().Delete(path, &api.WriteOptions{Token: c.opts.Config.Token})
 	if err != nil {
@@ -246,12 +246,12 @@ func (c *ConsulHandler) Delete(path string) (bool, error) {
 	return true, nil
 }
 
-// ServiceRegistration registers a service by name
+//ServiceRegistration registers a service by name
 func (c *ConsulHandler) ServiceRegistration(name string, tags ...string) error {
 	return c.Client.Agent().ServiceRegister(&api.AgentServiceRegistration{Name: name, Tags: tags})
 }
 
-// ServiceDeregistation deregisters a service by name
+//ServiceDeregistation deregisters a service by name
 func (c *ConsulHandler) ServiceDeregistation(name string) error {
 	return c.Client.Agent().ServiceDeregister(name)
 }

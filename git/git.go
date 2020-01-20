@@ -40,7 +40,7 @@ func Open(repoPath string) *Collection {
 
 }
 
-//NewRepository initalizes the git repository
+//NewRepository initializes the git repository
 func NewRepository(opt ...GitOptions) *Collection {
 	opts := defaultCloneOptions
 	for _, f := range opt {
@@ -128,14 +128,14 @@ func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredF
 			}
 			contents, err := ioutil.ReadFile(pullDir + "/" + diffDelta.NewFile.Path)
 			if err != nil || os.IsNotExist(err) {
-				logrus.Warningf("Did not map contents %s becuase it does not exist %v", diffDelta.NewFile.Path, err)
+				logrus.Warningf("Did not map contents %s because it does not exist %v", diffDelta.NewFile.Path, err)
 				fileChanges[diffDelta.NewFile.Path] = nil
 			}
 			fileChanges[diffDelta.NewFile.Path] = contents
 		}
 		contents, err := ioutil.ReadFile(pullDir + "/" + diffDelta.NewFile.Path)
 		if err != nil || os.IsNotExist(err) {
-			logrus.Warningf("Did not map contents %s becuase it does not exist %v", diffDelta.NewFile.Path, err)
+			logrus.Warningf("Did not map contents %s because it does not exist %v", diffDelta.NewFile.Path, err)
 			fileChanges[diffDelta.NewFile.Path] = nil
 		}
 		fileChanges[diffDelta.NewFile.Path] = contents

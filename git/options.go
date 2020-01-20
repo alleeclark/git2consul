@@ -88,7 +88,7 @@ func PassphrasePath(path string) GitOptions {
 func RSAFingerPrintPath(path string) GitOptions {
 	return func(o *options) error {
 		fingerPrint, err := ioutil.ReadFile(o.gitRSAFingerprintPath)
-		// need to add and test other edge cases
+		//need to add and test other edge cases
 		if err != nil {
 			return err
 		}
