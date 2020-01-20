@@ -16,6 +16,7 @@ func New() *cli.App {
 		cli.StringFlag{Name: "git-url", Usage: "git url to clone", Required: false},
 		cli.StringFlag{Name: "git-branch", Value: "master", Usage: "git branch to run syncing on"},
 		cli.StringFlag{Name: "git-dir", Value: "/var/git2consul/data", Usage: "directory to pull to"},
+		cli.StringFlag{Name: "git-remote", Value: "origin"},
 		cli.BoolFlag{Name: "git-ssh-enabled", Usage: "enable ssh agent usage", Hidden: true},
 		cli.BoolFlag{Name: "git-ssh-file", Usage: "read public, private, and passpharse for ssh agent", Hidden: true},
 		cli.StringFlag{Name: "git-fingerprint-path", FilePath: "/var/git2consul/.ssh/fingerprint", Usage: "git RSA finerprint id", Required: false},

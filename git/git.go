@@ -11,12 +11,12 @@ import (
 )
 
 //Fetch remote for a given branch
-func (c *Collection) Fetch(opts *git2go.CloneOptions, branchName string) *Collection {
+func (c *Collection) Fetch(opts *git2go.CloneOptions, remoteName string) *Collection {
 	if _, err := os.Stat(c.Repository.Path()); os.IsNotExist(err) {
 		logrus.Warningf("Unable to find path of the local repository of branch %s to clone", branchName)
 		return nil
 	}
-	remote, err := c.Repository.Remotes.Lookup(branchName)
+	remote, err := c.Repository.Remotes.Lookup(remoteName)
 	if err != nil {
 		logrus.Warningf("Failed looking up remote repository %v", err)
 		return c
@@ -79,12 +79,7 @@ type WithIgnoredFiles map[string][]byte
 //ListFileChanges returns a map of files that have changed based on filtered commmits found along with the contents
 func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredFiles) map[string][]byte {
 	if len(c.Commits) < 1 {
-		logrus.Infoln("No commits found to sync to contents")
-		return nil
-	}
-	diffOptions, err := git2go.DefaultDiffOptions()
-	if err != nil {
-		logrus.Warningf("Failed getting diff options %v", err)
+		logrus.Infoln("No commits found to sync contents %d", len(c.Commits))
 		return nil
 	}
 	oldTree, err := c.Commits[0].Tree()
@@ -93,6 +88,12 @@ func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredF
 	}
 	newTree, err := c.Commits[len(c.Commits)-1].Tree()
 	if err != nil {
+		return nil
+	}
+
+	diffOptions, err := git2go.DefaultDiffOptions()
+	if err != nil {
+		logrus.Warningf("Failed getting diff options %v", err)
 		return nil
 	}
 
@@ -107,6 +108,11 @@ func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredF
 		logrus.Warningf("Failed getting num of deltas %v", err)
 		return nil
 	}
+	if numOfDeltas == 0 {
+		logrus.Info("No deltas found")
+		return nil
+	}
+
 	fileChanges := make(map[string][]byte, numOfDeltas)
 	for d := 0; d < numOfDeltas; d++ {
 		diffDelta, err := diff.GetDelta(d)
@@ -115,14 +121,21 @@ func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredF
 		}
 		if len(ignoreFiles) > 0 {
 			if _, ok := ignoreFiles[0][diffDelta.NewFile.Path]; !ok {
-				contents, err := ioutil.ReadFile(pullDir + "/" + diffDelta.NewFile.Path)
-				if err != nil || os.IsNotExist(err) {
-					logrus.Warningf("did not map contents %s becuase it does not exist %v", diffDelta.NewFile.Path, err)
-					fileChanges[diffDelta.NewFile.Path] = nil
-				}
-				fileChanges[diffDelta.NewFile.Path] = contents
+				continue
 			}
+			contents, err := ioutil.ReadFile(pullDir + "/" + diffDelta.NewFile.Path)
+			if err != nil || os.IsNotExist(err) {
+				logrus.Warningf("Did not map contents %s becuase it does not exist %v", diffDelta.NewFile.Path, err)
+				fileChanges[diffDelta.NewFile.Path] = nil
+			}
+			fileChanges[diffDelta.NewFile.Path] = contents
 		}
+		contents, err := ioutil.ReadFile(pullDir + "/" + diffDelta.NewFile.Path)
+		if err != nil || os.IsNotExist(err) {
+			logrus.Warningf("Did not map contents %s becuase it does not exist %v", diffDelta.NewFile.Path, err)
+			fileChanges[diffDelta.NewFile.Path] = nil
+		}
+		fileChanges[diffDelta.NewFile.Path] = contents
 	}
 	return fileChanges
 }

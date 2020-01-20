@@ -2,11 +2,13 @@ package git
 
 import (
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"strings"
 	"time"
 
 	git2go "github.com/alleeclark/git2go"
+	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -25,7 +27,7 @@ type GitOptions func(*options) error
 //Branch sets branch for git repo
 func Branch(branch string) GitOptions {
 	return func(o *options) error {
-		o.branch = branch
+		o.branch = fmt.Sprintf("refs/remotes/origin/%s", branch)
 		return nil
 	}
 }
@@ -137,7 +139,7 @@ func ByCommitID(id *git2go.Oid) FilterFunc {
 //ByBranch filters by a given branch
 func ByBranch(name string) FilterFunc {
 	return func(c *Collection) bool {
-		branch, err := c.Repository.LookupBranch(name, git2go.BranchRemote)
+		branch, err := c.Repository.LookupBranch(name, git2go.BranchAll)
 		if err != nil {
 			log.Warningf("Failed finding branch %s %v", name, err)
 			return false
@@ -156,28 +158,30 @@ func ByDate(date time.Time) FilterFunc {
 		}
 		revWalk, err := c.Repository.Walk()
 		if err != nil {
-			log.Warningf("could not walk repo %v", err)
+			log.Warningf("Could not walk repo %v", err)
 			return false
 		}
 		if err := revWalk.PushGlob("*"); err != nil {
-			log.Warningf("failed pushing glob %v", err)
-			if err := revWalk.Push(c.Ref.Target()); err != nil {
-				log.Warningf("failed pushing git reference target %v", err)
-				return false
+			log.Warningf("Failed pushing glob %v", err)
+			return false
+		}
+		if err := revWalk.Push(c.Ref.Target()); err != nil {
+			log.Warningf("Failed pushing git reference target %v", err)
+			return false
+		}
+		revWalk.Sorting(git2go.SortTime)
+		revWalk.SimplifyFirstParent()
+		id := &(git2go.Oid{})
+		for revWalk.Next(id) == nil {
+			commit, err := c.Repository.LookupCommit(id)
+			if err != nil {
+				log.Warningf("Failed finding commit id %v %v", id, err)
 			}
-			revWalk.Sorting(git2go.SortTime)
-			revWalk.SimplifyFirstParent()
-			id := &(git2go.Oid{})
-			for revWalk.Next(id) == nil {
-				g, err := c.Repository.LookupCommit(id)
-				if err != nil {
-					log.Warningf("Failed finding commit id %v %v", id, err)
-				}
-				if g.Author().When.Before(date) {
-					break
-				}
-				c.Commits = append(c.Commits, g)
+			logrus.Info(commit.Author().When.UTC().String())
+			if commit.Author().When.UTC().Before(date) {
+				continue
 			}
+			c.Commits = append(c.Commits, commit)
 		}
 		return true
 	}
