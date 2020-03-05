@@ -1,0 +1,3 @@
+[Timer]
+OnCalendar=*:0/2
+Unit=git2consul.service
