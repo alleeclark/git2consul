@@ -44,7 +44,7 @@ func TestFetch(t *testing.T) {
 		username:      "sre",
 		fingerPrint:   []byte(""),
 	}
-	cloneOpts := CloneOptions(opt.username, opt.fingerPrint)
+	cloneOpts := CloneOptions(opt.username, opt.password opt.fingerPrint)
 	if cloneOpts == nil {
 		t.Log("clone opts returned null")
 		t.Fail()

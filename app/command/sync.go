@@ -22,17 +22,20 @@ var syncCommand = cli.Command{
 				pushMetrics(c.GlobalString("pushgateway-addr"))
 			}
 		}()
-		gitCollection := git.NewRepository(git.Username(c.GlobalString("git-user")), git.URL(c.GlobalString("git-url")), git.PullDir(c.GlobalString("git-dir")))
-		logrus.Infoln("Cloned git repository")
+		gitCollection := git.NewRepository(git.Username(c.GlobalString("git-user")), git.Password(c.GlobalString("git-password")), git.URL(c.GlobalString("git-url")), git.PullDir(c.GlobalString("git-dir")))
+		if gitCollection == nil {
+			return nil
+		}
+		logrus.Infoln("cloned git repository")
 		consulGitReads.Inc()
 		since := time.Second * -time.Duration(c.Int64("since"))
 		past := time.Now().Add(since)
 		logrus.Infof("past time is %s", past.UTC().String())
-		gitCollection = gitCollection.Fetch(git.CloneOptions(c.GlobalString("git-user"), []byte(c.GlobalString("git-fingerprint-path"))), c.GlobalString("git-remote")).Filter(git.ByBranch(c.GlobalString("git-branch"))).Filter(git.ByDate(past.UTC()))
+		gitCollection = gitCollection.Fetch(git.CloneOptions(c.GlobalString("git-user"), c.GlobalString("git-password"), []byte(c.GlobalString("git-fingerprint-path"))), c.GlobalString("git-remote")).Filter(git.ByBranch(c.GlobalString("git-branch"))).Filter(git.ByDate(past.UTC()))
 		consulGitReads.Inc()
 		fileChanges := gitCollection.ListFileChanges(c.GlobalString("git-dir"))
 		if len(fileChanges) == 0 {
-			logrus.Info("No File changes")
+			logrus.Info("no File changes")
 			for k := range fileChanges {
 				logrus.Info(k)
 			}
@@ -50,7 +53,7 @@ var syncCommand = cli.Command{
 				consulPath = consulPath[1:len(consulPath)]
 			}
 			if ok, err := consulInteractor.Put(consulPath, bytes.TrimSpace(val)); err != nil || !ok {
-				logrus.Warningf("Failed adding content %s %v ", key, err)
+				logrus.Warningf("failed adding content %s %v ", key, err)
 				consulGitSyncedFailed.Inc()
 			} else {
 				consulGitSynced.Inc()

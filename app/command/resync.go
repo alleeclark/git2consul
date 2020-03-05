@@ -42,7 +42,7 @@ var resyncCommand = cli.Command{
 				pushMetrics(c.GlobalString("pushgateway-addr"))
 			}
 		}()
-		git.NewRepository(git.Username(c.GlobalString("git-user")),
+		git.NewRepository(git.Username(c.GlobalString("git-user")), git.Password(c.GlobalString("git-password")),
 			git.URL(c.GlobalString("git-url")),
 			git.PullDir(c.GlobalString("git-dir")),
 		)
@@ -50,25 +50,25 @@ var resyncCommand = cli.Command{
 		consulGitReads.Inc()
 		err := filepath.Walk(c.GlobalString("git-dir"), func(path string, info os.FileInfo, err error) error {
 			if err != nil {
-				logrus.WithField("git-dir", c.GlobalString("git-dir")).Fatalf("Failed to walk the directory %v", err)
+				logrus.WithField("git-dir", c.GlobalString("git-dir")).Fatalf("failed to walk the directory %v", err)
 				return err
 			}
 			if !info.IsDir() {
 				contents, err := ioutil.ReadFile(path)
 				if err != nil {
-					logrus.Warningf("Failed reading file %s: %v", path, err)
+					logrus.Warningf("failed reading file %s: %v", path, err)
 				}
 				consulInteractor, err := consul.NewHandler(consul.Config(c.GlobalString("consul-addr"), c.GlobalString("consul-token")))
 				consulGitConnectionFailed.Inc()
 				if err != nil {
-					logrus.Warningf("Failed connecting to consul %v", err)
+					logrus.Warningf("failed connecting to consul %v", err)
 				}
 				consulPath := c.GlobalString("consul-path") + path
 				if consulPath[0:1] == "/" {
 					consulPath = consulPath[1:len(consulPath)]
 				}
 				if ok, err := consulInteractor.Put(consulPath, bytes.TrimSpace(contents)); err != nil || !ok {
-					logrus.Warningf("Failed adding contents %s %v ", path, err)
+					logrus.Warningf("failed adding contents %s %v ", path, err)
 					consulGitSyncedFailed.Inc()
 				} else {
 					consulGitSynced.Inc()
@@ -77,7 +77,7 @@ var resyncCommand = cli.Command{
 			return nil
 		})
 		if err != nil {
-			logrus.Warningf("Failed to read repository's path %s and sync to consul", c.GlobalString("git-dir"))
+			logrus.Warningf("failed to read repository's path %s and sync to consul", c.GlobalString("git-dir"))
 			return err
 		}
 		return nil

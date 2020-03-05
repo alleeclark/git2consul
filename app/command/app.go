@@ -12,7 +12,8 @@ func New() *cli.App {
 	app.Usage = "a syncing service from git to consul"
 
 	app.Flags = []cli.Flag{
-		cli.StringFlag{Name: "git-user", Value: "git2consul", Usage: "git user for ssh", Required: false},
+		cli.StringFlag{Name: "git-user", Value: "git2consul", Usage: "git username", Required: false},
+		cli.StringFlag{Name: "git-password", Value: "", Usage: "git password", Required: false},
 		cli.StringFlag{Name: "git-url", Usage: "git url to clone", Required: false},
 		cli.StringFlag{Name: "git-branch", Value: "master", Usage: "git branch to run syncing on"},
 		cli.StringFlag{Name: "git-dir", Value: "/var/git2consul/data", Usage: "directory to pull to"},

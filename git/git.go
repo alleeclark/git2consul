@@ -23,7 +23,7 @@ func (c *Collection) Fetch(opts *git2go.CloneOptions, remoteName string) *Collec
 	}
 	var refspecs []string
 	if err = remote.Fetch(refspecs, opts.FetchOptions, ""); err != nil {
-		logrus.Warningf("Failed fetching remote repository %v", err)
+		logrus.Warningf("failed fetching remote repository %v", err)
 		return c
 	}
 	return c
@@ -59,13 +59,13 @@ func NewRepository(opt ...GitOptions) *Collection {
 			logrus.Warningf("Failed creating the directory %v", err)
 		}
 	}
-	cloneOpts := CloneOptions(opts.username, opts.fingerPrint)
+	cloneOpts := CloneOptions(opts.username, opts.password, opts.fingerPrint)
 	repo, err := git2go.Clone(opts.url, opts.pullDirectory, cloneOpts)
 	if err != nil && strings.Contains(err.Error(), "exists and is not an empty directory") {
 		logrus.Debug("Repository already found, so opening it")
 		return Open(opts.pullDirectory)
 	} else if err != nil || repo == nil {
-		logrus.Warningf("Failed cloning url %s %v", opts.url, err)
+		logrus.Warningf("failed cloning url %s %v", opts.url, err)
 		return nil
 	}
 	return &Collection{
@@ -79,7 +79,7 @@ type WithIgnoredFiles map[string][]byte
 //ListFileChanges returns a map of files that have changed based on filtered commmits found along with the contents
 func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredFiles) map[string][]byte {
 	if len(c.Commits) == 0 {
-		logrus.Infoln("No commits found to sync contents %d", len(c.Commits))
+		logrus.Infof("no commits found to sync contents %d \n", len(c.Commits))
 		return nil
 	}
 	if len(c.Commits) == 1 {
@@ -145,6 +145,7 @@ func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredF
 
 var defaultCloneOptions = options{
 	username:       "git2consul",
+	password:       "",
 	publicKeyPath:  "/var/git2consul/id_rsa.pub",
 	privateKeyPath: "/var/git2consul/id_rsa",
 	passphrase:     "",
@@ -153,17 +154,22 @@ var defaultCloneOptions = options{
 
 //CloneOptions sets all needed options for git fetch, cloning and checkouts
 //TODOO make more flexible for different credential types
-func CloneOptions(username string, gitRSAFingerprint []byte) *git2go.CloneOptions {
+func CloneOptions(username, password string, gitRSAFingerprint []byte) *git2go.CloneOptions {
 	credentialsCallback := func(url string, username string, allowedTypes git2go.CredType) (git2go.ErrorCode, *git2go.Cred) {
-		ret, cred := git2go.NewCredSshKeyFromAgent(username)
-		return git2go.ErrorCode(ret), &cred
+		if password == "" {
+			ret, cred := git2go.NewCredSshKeyFromAgent(username)
+			return git2go.ErrorCode(ret), &cred
+		} else {
+			ret, cred := git2go.NewCredUserpassPlaintext(username, password)
+			return git2go.ErrorCode(ret), &cred
+		}
 	}
 	var cbs git2go.RemoteCallbacks
 	if len(gitRSAFingerprint) < 1 {
 		certificateCheckCallback := func(cert *git2go.Certificate, valid bool, hostname string) git2go.ErrorCode {
 			for i := 0; i < len(gitRSAFingerprint); i++ {
 				if cert.Hostkey.HashMD5[i] != gitRSAFingerprint[i] {
-					logrus.Warningln("Remote certificate invalid")
+					logrus.Warningln("remote certificate invalid")
 					return git2go.ErrUser
 				}
 			}
@@ -182,11 +188,4 @@ func CloneOptions(username string, gitRSAFingerprint []byte) *git2go.CloneOption
 	cloneOptions.CheckoutOpts.Strategy = 1
 	cloneOptions.FetchOptions.RemoteCallbacks = cbs
 	return cloneOptions
-}
-
-func withSSH(username, publicKeyPath, privateKeyPath, passharse string) (int, git2go.Cred) {
-	if username != "" && publicKeyPath != "" && privateKeyPath != "" && passharse != "" {
-		return git2go.NewCredSshKey(username, publicKeyPath, privateKeyPath, passharse)
-	}
-	return git2go.NewCredSshKeyFromAgent(username)
 }
