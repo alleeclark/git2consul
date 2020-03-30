@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 var syncCommand = cli.Command{
@@ -17,12 +17,19 @@ var syncCommand = cli.Command{
 	Description: "fetch contents changes and sync to consul",
 	Flags:       []cli.Flag{&cli.Int64Flag{Name: "since", Value: 60, Usage: "sync interval to consul in seconds"}},
 	Action: func(c *cli.Context) error {
+		setLog(c)
 		defer func() {
-			if c.GlobalBool("metrics") {
-				pushMetrics(c.GlobalString("pushgateway-addr"))
+			if c.Bool("metrics") {
+				pushMetrics(c.String("pushgateway-addr"))
 			}
 		}()
-		gitCollection := git.NewRepository(git.Username(c.GlobalString("git-user")), git.Password(c.GlobalString("git-password")), git.URL(c.GlobalString("git-url")), git.PullDir(c.GlobalString("git-dir")))
+		gitCollection := git.NewRepository(git.Username(c.String("git-user")),
+			git.Password(c.String("git-password")),
+			git.URL(c.String("git-url")),
+			git.PullDir(c.String("git-dir")),
+			git.PublicKeyPath(c.String("git-ssh-publickey-path")),
+			git.PrivateKeyPath(c.String("git-ssh-privatekey-path")),
+		)
 		if gitCollection == nil {
 			return nil
 		}
@@ -31,9 +38,9 @@ var syncCommand = cli.Command{
 		since := time.Second * -time.Duration(c.Int64("since"))
 		past := time.Now().Add(since)
 		logrus.Infof("past time is %s", past.UTC().String())
-		gitCollection = gitCollection.Fetch(git.CloneOptions(c.GlobalString("git-user"), c.GlobalString("git-password"), []byte(c.GlobalString("git-fingerprint-path"))), c.GlobalString("git-remote")).Filter(git.ByBranch(c.GlobalString("git-branch"))).Filter(git.ByDate(past.UTC()))
+		gitCollection = gitCollection.Fetch(git.CloneOptions(c.String("git-user"), c.String("git-password"), c.String("git-ssh-publickey-path"), c.String("git-ssh-privatekey-path"), c.String("git-ssh-passpharse-path"), []byte(c.String("git-fingerprint-path"))), c.String("git-remote")).Filter(git.ByBranch(c.String("git-branch"))).Filter(git.ByDate(past.UTC()))
 		consulGitReads.Inc()
-		fileChanges := gitCollection.ListFileChanges(c.GlobalString("git-dir"))
+		fileChanges := gitCollection.ListFileChanges(c.String("git-dir"))
 		if len(fileChanges) == 0 {
 			logrus.Info("no File changes")
 			for k := range fileChanges {
@@ -41,19 +48,22 @@ var syncCommand = cli.Command{
 			}
 			return nil
 		}
-		consulInteractor, err := consul.NewHandler(consul.Config(c.GlobalString("consul-addr"), c.GlobalString("consul-token")))
+		consulInteractor, err := consul.NewHandler(consul.Config(c.String("consul-addr"), c.String("consul-token")))
 		if err != nil {
-			logrus.Warningf("Failed connecting to consul %v", err)
+			logrus.WithField("error", err).Warning("failed connecting to consul")
 			consulGitConnectionFailed.Inc()
 		}
 
 		for key, val := range fileChanges {
-			consulPath := c.GlobalString("consul-path") + key
+			consulPath := c.String("consul-path") + key
 			if consulPath[0:1] == "/" {
 				consulPath = consulPath[1:len(consulPath)]
 			}
 			if ok, err := consulInteractor.Put(consulPath, bytes.TrimSpace(val)); err != nil || !ok {
-				logrus.Warningf("failed adding content %s %v ", key, err)
+				logrus.WithFields(logrus.Fields{
+					"key":   key,
+					"error": err,
+				}).Warning("failed adding content")
 				consulGitSyncedFailed.Inc()
 			} else {
 				consulGitSynced.Inc()

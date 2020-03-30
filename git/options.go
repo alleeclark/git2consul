@@ -7,9 +7,8 @@ import (
 	"strings"
 	"time"
 
-	git2go "github.com/alleeclark/git2go"
+	git2go "github.com/libgit2/git2go/v29"
 	"github.com/sirupsen/logrus"
-	log "github.com/sirupsen/logrus"
 )
 
 type options struct {
@@ -40,7 +39,7 @@ func PullDir(path string) GitOptions {
 	}
 }
 
-//URL sets the stash URL
+//URL sets the repo
 func URL(url string) GitOptions {
 	return func(o *options) error {
 		o.url = url
@@ -48,7 +47,7 @@ func URL(url string) GitOptions {
 	}
 }
 
-//Username sets the username for stash repo
+//Username sets the username for repo
 func Username(username string) GitOptions {
 	return func(o *options) error {
 		o.username = username
@@ -56,6 +55,7 @@ func Username(username string) GitOptions {
 	}
 }
 
+//Password sets the password for repo
 func Password(password string) GitOptions {
 	return func(o *options) error {
 		o.password = password
@@ -63,7 +63,7 @@ func Password(password string) GitOptions {
 	}
 }
 
-//PublicKeyPath sets publickey for stash repo
+//PublicKeyPath sets publickey for repo
 func PublicKeyPath(path string) GitOptions {
 	return func(o *options) error {
 		o.publicKeyPath = path
@@ -71,7 +71,7 @@ func PublicKeyPath(path string) GitOptions {
 	}
 }
 
-//PrivateKeyPath sets private key for stash repo
+//PrivateKeyPath sets private key for repo
 func PrivateKeyPath(path string) GitOptions {
 	return func(o *options) error {
 		o.privateKeyPath = path
@@ -135,7 +135,10 @@ func ByCommitID(id *git2go.Oid) FilterFunc {
 	return func(c *Collection) bool {
 		commit, err := c.LookupCommit(id)
 		if err != nil {
-			log.Warningf("error finding commit id: %s %v", id, err)
+			logrus.WithFields(logrus.Fields{
+				"id":    id,
+				"error": err,
+			}).Warning("error finding commit id")
 			return false
 		}
 		c.Commits = append(c.Commits, commit)
@@ -148,7 +151,7 @@ func ByBranch(name string) FilterFunc {
 	return func(c *Collection) bool {
 		branch, err := c.Repository.LookupBranch(name, git2go.BranchAll)
 		if err != nil {
-			log.Warningf("failed finding branch %s %v", name, err)
+			logrus.WithFields(logrus.Fields{"name": name, "error": err}).Warning("failed finding branch")
 			return false
 		}
 		c.Ref = branch.Reference
@@ -160,20 +163,20 @@ func ByBranch(name string) FilterFunc {
 func ByDate(date time.Time) FilterFunc {
 	return func(c *Collection) bool {
 		if c.Ref == nil {
-			log.Warningln("failed finding ref of the current git collection. Make sure the branch is pushed to origin")
+			logrus.Warningln("failed finding ref of the current git collection. Make sure the branch is pushed to origin")
 			return false
 		}
 		revWalk, err := c.Repository.Walk()
 		if err != nil {
-			log.Warningf("could not walk repo %v", err)
+			logrus.WithField("error", err).Warning("could not walk repo")
 			return false
 		}
 		if err := revWalk.PushGlob("*"); err != nil {
-			log.Warningf("failed pushing glob %v", err)
+			logrus.WithField("error", err).Warning("failed pushing glob")
 			return false
 		}
 		if err := revWalk.Push(c.Ref.Target()); err != nil {
-			log.Warningf("failed pushing git reference target %v", err)
+			logrus.WithField("error", err).Warning("failed pushing git reference target")
 			return false
 		}
 		revWalk.Sorting(git2go.SortTime)
@@ -183,7 +186,7 @@ func ByDate(date time.Time) FilterFunc {
 		for revWalk.Next(id) == nil {
 			commit, err := c.Repository.LookupCommit(id)
 			if err != nil {
-				log.Warningf("failed finding commit id %v %v", id, err)
+				logrus.WithFields(logrus.Fields{"id": id, "error": err}).Warning("failed finding commit")
 			}
 			logrus.Info(commit.Author().When.UTC().String())
 			if commit.Author().When.UTC().Before(date) {

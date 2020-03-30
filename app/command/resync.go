@@ -11,7 +11,7 @@ import (
 	"git2consul/git"
 
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 var resyncCommand = cli.Command{
@@ -21,8 +21,8 @@ var resyncCommand = cli.Command{
 	ArgsUsage:   "[flags] <ref>",
 	Description: "fetch content changes from git and sync to consul",
 	Flags: []cli.Flag{
-		cli.StringFlag{Name: "pre-shell", Value: "", Usage: "shell command to execute before syncing", Hidden: true},
-		cli.StringFlag{Name: "post-shell", Value: "", Usage: "shell command to execute after syncing", Hidden: true},
+		&cli.StringFlag{Name: "pre-shell", Value: "", Usage: "shell command to execute before syncing", Hidden: true},
+		&cli.StringFlag{Name: "post-shell", Value: "", Usage: "shell command to execute after syncing", Hidden: true},
 	},
 	Before: func(c *cli.Context) error {
 		if c.String("pre-shell") != "" {
@@ -37,38 +37,44 @@ var resyncCommand = cli.Command{
 		return nil
 	},
 	Action: func(c *cli.Context) error {
+		setLog(c)
 		defer func() {
-			if c.GlobalBool("metrics") {
-				pushMetrics(c.GlobalString("pushgateway-addr"))
+			if c.Bool("metrics") {
+				pushMetrics(c.String("pushgateway-addr"))
 			}
 		}()
-		git.NewRepository(git.Username(c.GlobalString("git-user")), git.Password(c.GlobalString("git-password")),
-			git.URL(c.GlobalString("git-url")),
-			git.PullDir(c.GlobalString("git-dir")),
+		git.NewRepository(git.Username(c.String("git-user")), git.Password(c.String("git-password")),
+			git.URL(c.String("git-url")),
+			git.PullDir(c.String("git-dir")),
 		)
-		logrus.WithField("git-url", c.GlobalString("git-url")).Infoln("Cloned git repository")
+		logrus.WithField("git-url", c.String("git-url")).Infoln("Cloned git repository")
 		consulGitReads.Inc()
-		err := filepath.Walk(c.GlobalString("git-dir"), func(path string, info os.FileInfo, err error) error {
+		err := filepath.Walk(c.String("git-dir"), func(path string, info os.FileInfo, err error) error {
 			if err != nil {
-				logrus.WithField("git-dir", c.GlobalString("git-dir")).Fatalf("failed to walk the directory %v", err)
+				logrus.WithField("git-dir", c.String("git-dir")).Warningf("failed to walk the directory %v", err)
 				return err
 			}
 			if !info.IsDir() {
 				contents, err := ioutil.ReadFile(path)
 				if err != nil {
-					logrus.Warningf("failed reading file %s: %v", path, err)
+					logrus.WithFields(
+						logrus.Fields{"path": path, "error": err},
+					).Warning("failed reading file")
 				}
-				consulInteractor, err := consul.NewHandler(consul.Config(c.GlobalString("consul-addr"), c.GlobalString("consul-token")))
+				consulInteractor, err := consul.NewHandler(consul.Config(c.String("consul-addr"), c.String("consul-token")))
 				consulGitConnectionFailed.Inc()
 				if err != nil {
-					logrus.Warningf("failed connecting to consul %v", err)
+					logrus.WithField("error", err).Warning("failed connecting to consul")
 				}
-				consulPath := c.GlobalString("consul-path") + path
+				consulPath := c.String("consul-path") + path
 				if consulPath[0:1] == "/" {
 					consulPath = consulPath[1:len(consulPath)]
 				}
 				if ok, err := consulInteractor.Put(consulPath, bytes.TrimSpace(contents)); err != nil || !ok {
-					logrus.Warningf("failed adding contents %s %v ", path, err)
+					logrus.WithFields(logrus.Fields{
+						"path":  path,
+						"error": err,
+					}).Warning("failed :adding contents")
 					consulGitSyncedFailed.Inc()
 				} else {
 					consulGitSynced.Inc()
@@ -77,8 +83,8 @@ var resyncCommand = cli.Command{
 			return nil
 		})
 		if err != nil {
-			logrus.Warningf("failed to read repository's path %s and sync to consul", c.GlobalString("git-dir"))
-			return err
+			logrus.WithField("directory", c.String("git-dir")).Fatal("failed to read repository's path %s and sync to consul")
+			return cli.NewExitError(err.Error, 1)
 		}
 		return nil
 	},

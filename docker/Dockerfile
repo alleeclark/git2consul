@@ -17,9 +17,9 @@ RUN cd $HOME && curl -fsSL https://github.com/libssh2/libssh2/archive/libssh2-1.
 	&& ldconfig
 
 # Build libgit2 from source
-RUN cd $HOME && curl -fsSL https://github.com/libgit2/libgit2/archive/v0.28.1.tar.gz -o v0.28.1.tar.gz \
- 	&& tar xvf v0.28.1.tar.gz -C libgit2 \
-	&& cd libgit2/libgit2-0.28.1 \
+RUN cd $HOME && curl -fsSL https://github.com/libgit2/libgit2/releases/download/v0.99.0/libgit2-0.99.0.tar.gz -o v0.99.0.tar.gz \
+ 	&& tar xvf v0.99.0.tar.gz -C libgit2 \
+	&& cd libgit2/libgit2-0.99.0 \
 	&& cmake -DCURL=OFF . \
 	&& cmake --build . \
 	&& make \
