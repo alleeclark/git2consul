@@ -1,4 +1,4 @@
-git-user = "d-git2consul"
+git-user = "git2consul"
 git-url = "https://github.com/alleeclark/test-git2consul.git"
 git-branch = "facts"
 git-dir = "/var/git2consul/data"
