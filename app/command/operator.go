@@ -4,6 +4,7 @@ import (
 	"git2consul/consul"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -81,7 +82,17 @@ func setLog(context *cli.Context) error {
 		})
 	}
 	logrus.SetLevel(lvl)
-	file, _ := os.Create(context.String("log-file"))
+	if err := os.MkdirAll(filepath.Dir(context.String("log-file")), 0666); err != nil {
+		logrus.WithField("error", err).Warning("unable to create log directory")
+		logrus.SetOutput(os.Stdout)
+		return nil
+	}
+	file, err := os.OpenFile(context.String("log-file"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		logrus.WithField("error", err).Warning("unable to create log file")
+		logrus.SetOutput(os.Stdout)
+		return nil
+	}
 	logrus.SetOutput(
 		io.MultiWriter(os.Stdout, file),
 	)
