@@ -43,10 +43,13 @@ var resyncCommand = cli.Command{
 				pushMetrics(c.String("pushgateway-addr"))
 			}
 		}()
-		git.NewRepository(git.Username(c.String("git-user")), git.Password(c.String("git-password")),
+		repo := git.NewRepository(git.Username(c.String("git-user")), git.Password(c.String("git-password")),
 			git.URL(c.String("git-url")),
 			git.PullDir(c.String("git-dir")),
 		)
+		if repo == nil {
+			return cli.Exit("could not intialize the repo", 1)
+		}
 		logrus.WithField("git-url", c.String("git-url")).Infoln("cloned git repository")
 		consulGitReads.Inc()
 		err := filepath.Walk(c.String("git-dir"), func(path string, info os.FileInfo, err error) error {
