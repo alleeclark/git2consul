@@ -141,7 +141,7 @@ func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredF
 		logrus.Infoln("no deltas found")
 		return nil
 	}
-	if pullDir[len(pullDir)-1:] == "/"{
+	if pullDir[len(pullDir)-1:] == "/" {
 		pullDir = pullDir[:len(pullDir)-1]
 	}
 
@@ -155,7 +155,7 @@ func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredF
 			}).Warning("failed getting diff")
 		}
 		if len(ignoreFiles) > 0 {
-			for i, _ := range ignoreFiles{
+			for i := range ignoreFiles {
 				if _, ok := ignoreFiles[i][diffDelta.NewFile.Path]; !ok {
 					continue
 				}
@@ -163,7 +163,7 @@ func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredF
 				if err != nil || os.IsNotExist(err) {
 					logrus.WithFields(logrus.Fields{
 						"error": err,
-						"path":  diffDelta.NewFile.Path
+						"path":  diffDelta.NewFile.Path,
 					}).Warning("did not map contents %s because it does not exist")
 					fileChanges[diffDelta.NewFile.Path] = nil
 				}
@@ -175,7 +175,7 @@ func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredF
 		if err != nil || os.IsNotExist(err) {
 			logrus.WithFields(logrus.Fields{
 				"error": err,
-				"path":  diffDelta.NewFile.Path
+				"path":  diffDelta.NewFile.Path,
 			}).Warning("did not map contents %s because it does not exist")
 			fileChanges[diffDelta.NewFile.Path] = nil
 		}
