@@ -188,7 +188,6 @@ func ByDate(date time.Time) FilterFunc {
 			if err != nil {
 				logrus.WithFields(logrus.Fields{"id": id, "error": err}).Warning("failed finding commit")
 			}
-			logrus.Info(commit.Author().When.UTC().String())
 			if commit.Author().When.UTC().Before(date) {
 				if oldCount < 1 {
 					c.Commits = append(c.Commits, commit)
