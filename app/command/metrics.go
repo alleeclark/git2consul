@@ -54,19 +54,13 @@ var (
 
 func init() {
 	if os.Getenv("GIT2CONSUL_METRICS") == "true" {
-		registry.Register(consulGitSynced)
-		registry.Register(consulGitSyncedFailed)
-		registry.Register(consulGitConnectionFailed)
-		registry.Register(consulGitReads)
+		registry.MustRegister(consulGitSynced,consulGitSyncedFailed, consulGitConnectionFailed, consulGitReads)
 	}
 }
 
 func pushMetrics(address string) {
-	gauges := append([]prometheus.Gauge{}, consulGitReads, consulGitConnectionFailed, consulGitSyncedFailed, consulGitSynced)
-	pusher := push.New("git2consul", address)
-	for _, gauge := range gauges {
-		if err := pusher.Collector(gauge).Gatherer(prometheus.DefaultGatherer).Push(); err != nil {
-			logrus.Warningln(err)
-		}
+	pusher := push.New("git2consul", address).Gatherer(registery)
+	if err := pusher.Add(); err != nil{
+		logrus.WithField("error": err).Warning("could not push to pushgateway")
 	}
 }
