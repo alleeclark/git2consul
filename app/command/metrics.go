@@ -22,8 +22,8 @@ var (
 
 	consulGitSyncedFailed = promauto.NewGauge(prometheus.GaugeOpts{
 		Namespace: "git2consul",
-		Name:      "synced_failed",
-		Help:      "The total number of consul keys synced failed",
+		Name:      "synced_total",
+		Help:      "The total number of consul keys synced",
 		ConstLabels: prometheus.Labels{
 			"state":    "failed",
 			"instance": os.Getenv("HOSTNAME"),
@@ -32,8 +32,8 @@ var (
 
 	consulGitConnectionFailed = promauto.NewGauge(prometheus.GaugeOpts{
 		Namespace: "git2consul",
-		Name:      "consul_connection_failed",
-		Help:      "The total number connections to consul failed",
+		Name:      "consul_connections_total",
+		Help:      "The total number connections to consul",
 		ConstLabels: prometheus.Labels{
 			"state":    "failed",
 			"instance": os.Getenv("HOSTNAME"),
@@ -42,7 +42,7 @@ var (
 
 	consulGitReads = promauto.NewGauge(prometheus.GaugeOpts{
 		Namespace: "git2consul",
-		Name:      "git_reads",
+		Name:      "git_reads_total",
 		Help:      "The total number of times git was pulled",
 		ConstLabels: prometheus.Labels{
 			"instance": os.Getenv("HOSTNAME"),
