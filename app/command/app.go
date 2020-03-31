@@ -1,6 +1,7 @@
 package command
 
 import (
+	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
 )
@@ -32,9 +33,21 @@ func New() *cli.App {
 		altsrc.NewStringFlag(&cli.StringFlag{Name: "log-level,l", Usage: "set the logging level [trace, debug, info, warn, error, fatal, panic]", Value: "debug"}),
 		altsrc.NewStringFlag(&cli.StringFlag{Name: "log-file", Usage: "logfile path", Value: "/var/git2consul/logs/git2consul.log"}),
 		altsrc.NewStringFlag(&cli.StringFlag{Name: "log-format", Usage: "json", Value: "text"}),
-		&cli.StringFlag{Name: "config-file,c", Usage: "configuration file to read non sensative variables from must be in toml format", Value: "/var/git2consul/config.toml"},
+		&cli.StringFlag{Name: "config-file,c", Usage: "configuration file to read non sensative variables from must be in toml format"},
 	}
-	app.Before = altsrc.InitInputSourceWithContext(app.Flags, altsrc.NewTomlSourceFromFlagFunc("config-file"))
+	app.Before = func(c *cli.Context) error {
+
+		if c.String("config-file") != "" {
+			logrus.Debug("found a config file and attempting to apply input source values")
+			inputSource := altsrc.NewTomlSourceFromFlagFunc("config-file")
+			inputSourceCtx, err := inputSource(c)
+			if err != nil {
+				return cli.NewExitError(err.Error(), 1)
+			}
+			return altsrc.ApplyInputSourceValues(c, inputSourceCtx, c.App.Flags)
+		}
+		return nil
+	}
 	app.Commands = []*cli.Command{&operatorCommand, &syncCommand, &resyncCommand}
 	return app
 }
