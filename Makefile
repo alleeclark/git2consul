@@ -26,3 +26,7 @@ devcluster:
 .PHONY: refreshconsul
 refreshconsul:
 	docker restart consul
+
+.PHONY: resync
+resync:
+	docker run -it --network=host git2consul:$(shell git describe --always --tags) --config-file="/var/git2consul/config.toml" resync
