@@ -141,27 +141,42 @@ func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredF
 		logrus.Infoln("no deltas found")
 		return nil
 	}
+	if pullDir[len(pullDir)-1:] == "/"{
+		pullDir = pullDir[:len(pullDir)-1]
+	}
 
 	fileChanges := make(map[string][]byte, numOfDeltas)
 	for delta := 0; delta < numOfDeltas; delta++ {
 		diffDelta, err := diff.GetDelta(delta)
 		if err != nil {
-			logrus.Warningf("failed getting diff at %d %v", delta, err)
+			logrus.WithFields(logrus.Fields{
+				"delta": delta,
+				"error": err,
+			}).Warning("failed getting diff")
 		}
 		if len(ignoreFiles) > 0 {
-			if _, ok := ignoreFiles[0][diffDelta.NewFile.Path]; !ok {
-				continue
+			for i, _ := range ignoreFiles{
+				if _, ok := ignoreFiles[i][diffDelta.NewFile.Path]; !ok {
+					continue
+				}
+				contents, err := ioutil.ReadFile(pullDir + "/" + diffDelta.NewFile.Path)
+				if err != nil || os.IsNotExist(err) {
+					logrus.WithFields(logrus.Fields{
+						"error": err,
+						"path":  diffDelta.NewFile.Path
+					}).Warning("did not map contents %s because it does not exist")
+					fileChanges[diffDelta.NewFile.Path] = nil
+				}
+				fileChanges[diffDelta.NewFile.Path] = contents
 			}
-			contents, err := ioutil.ReadFile(pullDir + "/" + diffDelta.NewFile.Path)
-			if err != nil || os.IsNotExist(err) {
-				logrus.Warningf("did not map contents %s because it does not exist %v", diffDelta.NewFile.Path, err)
-				fileChanges[diffDelta.NewFile.Path] = nil
-			}
-			fileChanges[diffDelta.NewFile.Path] = contents
+
 		}
 		contents, err := ioutil.ReadFile(pullDir + "/" + diffDelta.NewFile.Path)
 		if err != nil || os.IsNotExist(err) {
-			logrus.Warningf("did not map contents %s because it does not exist %v", diffDelta.NewFile.Path, err)
+			logrus.WithFields(logrus.Fields{
+				"error": err,
+				"path":  diffDelta.NewFile.Path
+			}).Warning("did not map contents %s because it does not exist")
 			fileChanges[diffDelta.NewFile.Path] = nil
 		}
 		fileChanges[diffDelta.NewFile.Path] = contents
