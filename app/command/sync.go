@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"git2consul/consul"
 	"git2consul/git"
+	"os/exec"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -15,7 +16,17 @@ var syncCommand = cli.Command{
 	Usage:       "start a syncing frequency",
 	ArgsUsage:   "[flags] <ref>",
 	Description: "fetch contents changes and sync to consul",
-	Flags:       []cli.Flag{&cli.Int64Flag{Name: "since", Value: 60, Usage: "sync interval to consul in seconds"}},
+	Flags: []cli.Flag{
+		&cli.Int64Flag{Name: "since", Value: 60, Usage: "sync interval to consul in seconds"},
+		&cli.StringFlag{Name: "pre-shell", Value: "", Usage: "shell command to execute before syncing", Hidden: true},
+		&cli.StringFlag{Name: "post-shell", Value: "", Usage: "shell command to execute after syncing", Hidden: true}},
+	Before: func(c *cli.Context) error {
+		if c.String("pre-shell") != "" {
+			return exec.Command(c.String("pre-shell")).Run()
+		}
+		return nil
+
+	},
 	Action: func(c *cli.Context) error {
 		setLog(c)
 		defer func() {
@@ -42,10 +53,7 @@ var syncCommand = cli.Command{
 		consulGitReads.Inc()
 		fileChanges := gitCollection.ListFileChanges(c.String("git-dir"))
 		if len(fileChanges) == 0 {
-			logrus.Info("no File changes")
-			for k := range fileChanges {
-				logrus.Info(k)
-			}
+			logrus.Debugln("no File changes")
 			return nil
 		}
 		consulInteractor, err := consul.NewHandler(consul.Config(c.String("consul-addr"), c.String("consul-token")))
@@ -68,6 +76,13 @@ var syncCommand = cli.Command{
 			} else {
 				consulGitSynced.Inc()
 			}
+		}
+		logrus.WithField("fileschanged", len(fileChanges)).Info("synced")
+		return nil
+	},
+	After: func(c *cli.Context) error {
+		if c.String("post-shell") != "" {
+			return exec.Command(c.String("post-shell")).Run()
 		}
 		return nil
 	},
