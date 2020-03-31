@@ -26,7 +26,7 @@ var resyncCommand = cli.Command{
 	},
 	Before: func(c *cli.Context) error {
 		if c.String("pre-shell") != "" {
-			return exec.Command(c.String("shell")).Run()
+			return exec.Command(c.String("pre-shell")).Run()
 		}
 		return nil
 	},
@@ -47,7 +47,7 @@ var resyncCommand = cli.Command{
 			git.URL(c.String("git-url")),
 			git.PullDir(c.String("git-dir")),
 		)
-		logrus.WithField("git-url", c.String("git-url")).Infoln("Cloned git repository")
+		logrus.WithField("git-url", c.String("git-url")).Infoln("cloned git repository")
 		consulGitReads.Inc()
 		err := filepath.Walk(c.String("git-dir"), func(path string, info os.FileInfo, err error) error {
 			if err != nil {
@@ -72,9 +72,10 @@ var resyncCommand = cli.Command{
 				}
 				if ok, err := consulInteractor.Put(consulPath, bytes.TrimSpace(contents)); err != nil || !ok {
 					logrus.WithFields(logrus.Fields{
-						"path":  path,
-						"error": err,
-					}).Warning("failed :adding contents")
+						"path":        path,
+						"consul-path": consulPath,
+						"error":       err,
+					}).Warning("failed adding contents")
 					consulGitSyncedFailed.Inc()
 				} else {
 					consulGitSynced.Inc()
