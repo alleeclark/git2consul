@@ -11,7 +11,7 @@ import (
 )
 
 //Fetch remote for a given branch
-func (c *Collection) Fetch(opts *git2go.CloneOptions, remoteName string) *Collection {
+func (c *Collection) Fetch(opts *git2go.CloneOptions, remoteName, branch string) *Collection {
 	if _, err := os.Stat(c.Repository.Path()); os.IsNotExist(err) {
 		logrus.WithField("branch", remoteName).Warning("unable to find path of the local repository of branch to clone")
 		return nil
@@ -21,11 +21,107 @@ func (c *Collection) Fetch(opts *git2go.CloneOptions, remoteName string) *Collec
 		logrus.WithField("error", err).Warning("failed looking up remote repository")
 		return c
 	}
-	var refspecs []string
-	if err = remote.Fetch(refspecs, opts.FetchOptions, ""); err != nil {
+	if err = remote.Fetch([]string{}, opts.FetchOptions, ""); err != nil {
 		logrus.WithField("error", err).Warning("failed fetching remote repository")
 		return c
 	}
+	remoteBranch, err := c.Repository.References.Lookup(branch)
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error":      err,
+			"remoteName": remoteName,
+		})
+		return c
+	}
+	annontatedCommit, err := c.Repository.AnnotatedCommitFromRef(remoteBranch)
+	if err != nil {
+		logrus.WithField("error", err).Warning("failed to annontate commit")
+		return c
+	}
+	remoteBranchID := remoteBranch.Target()
+	mergeHeads := make([]*git2go.AnnotatedCommit, 1)
+	mergeHeads[0] = annontatedCommit
+	analysis, _, err := c.Repository.MergeAnalysis(mergeHeads)
+	if err != nil {
+		logrus.WithField("error", err).Warning("unable to complete merge analysis")
+		return c
+	}
+	head, err := c.Repository.Head()
+	if err != nil {
+		// need to add logging here
+		logrus.ErrorKey = ""
+		logrus.WithError(err).Warning("unable to locate head")
+		return c
+	}
+	if analysis&git2go.MergeAnalysisUpToDate != 0 {
+		return c
+	} else if analysis&git2go.MergeAnalysisNormal != 0 {
+		if err := c.Repository.Merge([]*git2go.AnnotatedCommit{annontatedCommit}, nil, nil); err != nil {
+			// log the error
+			logrus.WithError(err).Warning("unable to merge annotated commit")
+			return c
+		}
+		idx, err := c.Repository.Index()
+		if err != nil {
+			logrus.WithError(err).Warning("unable to get repo's index")
+			return c
+		}
+		if idx.HasConflicts() {
+			logrus.WithError(err).Warning("this merge has conflicts")
+			return c
+		}
+		sig, err := c.Repository.DefaultSignature()
+		if err != nil {
+			logrus.WithError(err).Warning("unable to get default sigature")
+			return c
+		}
+		treeID, err := idx.WriteTree()
+		if err != nil {
+			logrus.WithError(err).Warning("unable to write to tree")
+			return c
+		}
+		tree, err := c.Repository.LookupTree(treeID)
+		if err != nil {
+			logrus.WithError(err).Warning("unable to lookup tree id")
+			return c
+		}
+
+		localCommit, err := c.Repository.LookupCommit(head.Target())
+		if err != nil {
+			logrus.WithError(err).Warning("unable to look up the target of head")
+			return c
+		}
+		remoteCommit, err := c.Repository.LookupCommit(remoteBranchID)
+		if err != nil {
+			logrus.WithError(err).Warning("failed to look up commit from remote branch id")
+			return c
+		}
+		c.Repository.CreateCommit("HEAD", sig, sig, "", tree, localCommit, remoteCommit)
+		c.Repository.StateCleanup()
+		return c
+	} else if analysis&git2go.MergeAnalysisFastForward != 0 {
+		remoteTree, err := c.Repository.LookupTree(remoteBranchID)
+		if err != nil {
+			logrus.WithError(err).Warning("unable to look up the remote branch id with merge analysis fastforward")
+			return c
+		}
+		if err := c.Repository.CheckoutTree(remoteTree, nil); err != nil {
+			logrus.WithError(err).Warning("unabled to checkout tree on remote")
+			return c
+		}
+		branchRef, err := c.Repository.References.Lookup(branch)
+		if err != nil {
+			logrus.WithError(err).Warning("unable to look up remote references")
+			return c
+		}
+		branchRef.SetTarget(remoteBranchID, "")
+		if _, err := head.SetTarget(remoteBranchID, ""); err != nil {
+			logrus.WithError(err).Warning("unable to set target")
+			return c
+		}
+		return c
+	}
+	logrus.Warning("did not pull the repository")
 	return c
 }
 

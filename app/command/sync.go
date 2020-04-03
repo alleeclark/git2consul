@@ -2,6 +2,7 @@ package command
 
 import (
 	"bytes"
+	"fmt"
 	"git2consul/consul"
 	"git2consul/git"
 	"os/exec"
@@ -44,12 +45,18 @@ var syncCommand = cli.Command{
 		if gitCollection == nil {
 			return nil
 		}
-		logrus.Infoln("cloned git repository")
 		consulGitReads.Inc()
 		since := time.Second * -time.Duration(c.Int64("since"))
 		past := time.Now().Add(since)
 		logrus.Infof("past time is %s", past.UTC().String())
-		gitCollection = gitCollection.Fetch(git.CloneOptions(c.String("git-user"), c.String("git-password"), c.String("git-ssh-publickey-path"), c.String("git-ssh-privatekey-path"), c.String("git-ssh-passpharse-path"), []byte(c.String("git-fingerprint-path"))), c.String("git-remote")).Filter(git.ByBranch(c.String("git-branch"))).Filter(git.ByDate(past.UTC()))
+		gitCollection = gitCollection.Fetch(
+			git.CloneOptions(c.String("git-user"),
+				c.String("git-password"),
+				c.String("git-ssh-publickey-path"),
+				c.String("git-ssh-privatekey-path"),
+				c.String("git-ssh-passpharse-path"),
+				[]byte(c.String("git-fingerprint-path"))),
+			c.String("git-remote"), fmt.Sprintf("refs/remotes/%s/%s", c.String("git-remote"), c.String("git-branch"))).Filter(git.ByBranch(c.String("git-branch"))).Filter(git.ByDate(past.UTC()))
 		consulGitReads.Inc()
 		fileChanges := gitCollection.ListFileChanges(c.String("git-dir"))
 		if len(fileChanges) == 0 {

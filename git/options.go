@@ -23,7 +23,7 @@ type options struct {
 //GitOptions to simplify function signuratures
 type GitOptions func(*options) error
 
-//Branch sets branch for git repo
+//Branch sets branch for the remote repo
 func Branch(branch string) GitOptions {
 	return func(o *options) error {
 		o.branch = fmt.Sprintf("refs/remotes/origin/%s", branch)

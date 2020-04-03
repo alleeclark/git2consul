@@ -50,7 +50,7 @@ func TestFetch(t *testing.T) {
 		t.Fail()
 	}
 	repo := Open(testDir)
-	repo = repo.Fetch(cloneOpts, opt.branch)
+	repo = repo.Fetch(cloneOpts, opt.branch, "refs/remotes/origin/"+opt.branch)
 	if repo.Repository == nil {
 		t.Log("Error Fetching repository")
 		t.Fail()
