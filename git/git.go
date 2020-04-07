@@ -1,17 +1,17 @@
 package git
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
 
-	"github.com/sirupsen/logrus"
-
 	git2go "github.com/libgit2/git2go/v29"
+	"github.com/sirupsen/logrus"
 )
 
-//Fetch remote for a given branch
-func (c *Collection) Fetch(opts *git2go.CloneOptions, remoteName, branch string) *Collection {
+//Pull a given remote for a given branch
+func (c *Collection) Pull(opts *git2go.CloneOptions, remoteName, branch string) *Collection {
 	if _, err := os.Stat(c.Repository.Path()); os.IsNotExist(err) {
 		logrus.WithField("branch", remoteName).Warning("unable to find path of the local repository of branch to clone")
 		return nil
@@ -21,7 +21,8 @@ func (c *Collection) Fetch(opts *git2go.CloneOptions, remoteName, branch string)
 		logrus.WithField("error", err).Warning("failed looking up remote repository")
 		return c
 	}
-	if err = remote.Fetch([]string{}, opts.FetchOptions, ""); err != nil {
+	localBranchRef := fmt.Sprintf("refs/heads/%s", branch)
+	if err = remote.Fetch([]string{localBranchRef}, opts.FetchOptions, ""); err != nil {
 		logrus.WithField("error", err).Warning("failed fetching remote repository")
 		return c
 	}
@@ -33,96 +34,55 @@ func (c *Collection) Fetch(opts *git2go.CloneOptions, remoteName, branch string)
 		})
 		return c
 	}
-	annontatedCommit, err := c.Repository.AnnotatedCommitFromRef(remoteBranch)
+	_, err = c.Repository.References.Lookup(localBranchRef)
 	if err != nil {
-		logrus.WithField("error", err).Warning("failed to annontate commit")
+		_, err := c.Repository.References.Create(localBranchRef, remoteBranch.Target(), true, "")
+		if err != nil {
+			logrus.WithError(err).Warning("failed creating local branch")
+			return c
+		}
+	}
+	// need to add logging statements
+	if err = c.Repository.SetHead(localBranchRef); err != nil {
 		return c
 	}
-	remoteBranchID := remoteBranch.Target()
-	mergeHeads := make([]*git2go.AnnotatedCommit, 1)
-	mergeHeads[0] = annontatedCommit
-	analysis, _, err := c.Repository.MergeAnalysis(mergeHeads)
-	if err != nil {
-		logrus.WithField("error", err).Warning("unable to complete merge analysis")
+	if err = c.Repository.CheckoutHead(opts.CheckoutOpts); err != nil {
 		return c
 	}
 	head, err := c.Repository.Head()
 	if err != nil {
-		// need to add logging here
-		logrus.ErrorKey = ""
-		logrus.WithError(err).Warning("unable to locate head")
 		return c
 	}
-	if analysis&git2go.MergeAnalysisUpToDate != 0 {
-		return c
-	} else if analysis&git2go.MergeAnalysisNormal != 0 {
-		if err := c.Repository.Merge([]*git2go.AnnotatedCommit{annontatedCommit}, nil, nil); err != nil {
-			// log the error
-			logrus.WithError(err).Warning("unable to merge annotated commit")
-			return c
-		}
-		idx, err := c.Repository.Index()
-		if err != nil {
-			logrus.WithError(err).Warning("unable to get repo's index")
-			return c
-		}
-		if idx.HasConflicts() {
-			logrus.WithError(err).Warning("this merge has conflicts")
-			return c
-		}
-		sig, err := c.Repository.DefaultSignature()
-		if err != nil {
-			logrus.WithError(err).Warning("unable to get default sigature")
-			return c
-		}
-		treeID, err := idx.WriteTree()
-		if err != nil {
-			logrus.WithError(err).Warning("unable to write to tree")
-			return c
-		}
-		tree, err := c.Repository.LookupTree(treeID)
-		if err != nil {
-			logrus.WithError(err).Warning("unable to lookup tree id")
-			return c
-		}
 
-		localCommit, err := c.Repository.LookupCommit(head.Target())
-		if err != nil {
-			logrus.WithError(err).Warning("unable to look up the target of head")
-			return c
-		}
-		remoteCommit, err := c.Repository.LookupCommit(remoteBranchID)
-		if err != nil {
-			logrus.WithError(err).Warning("failed to look up commit from remote branch id")
-			return c
-		}
-		c.Repository.CreateCommit("HEAD", sig, sig, "", tree, localCommit, remoteCommit)
-		c.Repository.StateCleanup()
-		return c
-	} else if analysis&git2go.MergeAnalysisFastForward != 0 {
-		remoteTree, err := c.Repository.LookupTree(remoteBranchID)
-		if err != nil {
-			logrus.WithError(err).Warning("unable to look up the remote branch id with merge analysis fastforward")
-			return c
-		}
-		if err := c.Repository.CheckoutTree(remoteTree, nil); err != nil {
-			logrus.WithError(err).Warning("unabled to checkout tree on remote")
-			return c
-		}
-		branchRef, err := c.Repository.References.Lookup(branch)
-		if err != nil {
-			logrus.WithError(err).Warning("unable to look up remote references")
-			return c
-		}
-		branchRef.SetTarget(remoteBranchID, "")
-		if _, err := head.SetTarget(remoteBranchID, ""); err != nil {
-			logrus.WithError(err).Warning("unable to set target")
-			return c
-		}
+	annotatedCommit, err := c.Repository.AnnotatedCommitFromRef(remoteBranch)
+	if err != nil {
+		logrus.WithError(err).Warning("failed getting annontated commit from remote branch")
 		return c
 	}
-	logrus.Warning("did not pull the repository")
+
+	mergeHeads := []*git2go.AnnotatedCommit{annotatedCommit}
+	analysis, _, err := c.Repository.MergeAnalysis(mergeHeads)
+	if err != nil {
+		logrus.WithError(err).Warning("failed peforming merge analysis")
+	}
+
+	switch {
+	case analysis&git2go.MergeAnalysisFastForward != 0, analysis&git2go.MergeAnalysisNormal != 0:
+		if err := c.Repository.Merge(mergeHeads, nil, nil); err != nil {
+			logrus.WithError(err).Warning("failed to merge")
+			return c
+		}
+		if _, err = head.SetTarget(remoteBranch.Target(), ""); err != nil {
+			logrus.WithError(err).Warning("failed updating refs on heads (local) from remotes")
+			return c
+		}
+	}
+	logrus.WithField("analysis", analysis).Debug("pull request analysis")
+	defer head.Free()
+	defer c.Repository.StateCleanup()
+
 	return c
+
 }
 
 //Open repository
@@ -324,7 +284,9 @@ func CloneOptions(username, password, publickeyPath, privateKeyPath, passphrase 
 
 	cloneOptions := &git2go.CloneOptions{}
 	cloneOptions.FetchOptions = &git2go.FetchOptions{}
-	cloneOptions.CheckoutOpts = &git2go.CheckoutOpts{}
+	cloneOptions.CheckoutOpts = &git2go.CheckoutOpts{
+		Strategy: git2go.CheckoutForce,
+	}
 	cloneOptions.CheckoutOpts.Strategy = 1
 	cloneOptions.FetchOptions.RemoteCallbacks = cbs
 	return cloneOptions

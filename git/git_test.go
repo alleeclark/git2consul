@@ -36,7 +36,7 @@ func TestOpenRepository(t *testing.T) {
 	}
 }
 
-func TestFetch(t *testing.T) {
+func TestPull(t *testing.T) {
 	opt := options{
 		branch:        "origin",
 		pullDirectory: testDir,
@@ -50,7 +50,7 @@ func TestFetch(t *testing.T) {
 		t.Fail()
 	}
 	repo := Open(testDir)
-	repo = repo.Fetch(cloneOpts, opt.branch, "refs/remotes/origin/"+opt.branch)
+	repo = repo.Pull(cloneOpts, opt.branch, "refs/remotes/origin/"+opt.branch)
 	if repo.Repository == nil {
 		t.Log("Error Fetching repository")
 		t.Fail()

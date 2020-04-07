@@ -49,7 +49,7 @@ var syncCommand = cli.Command{
 		since := time.Second * -time.Duration(c.Int64("since"))
 		past := time.Now().Add(since)
 		logrus.Infof("past time is %s", past.UTC().String())
-		gitCollection = gitCollection.Fetch(
+		gitCollection = gitCollection.Pull(
 			git.CloneOptions(c.String("git-user"),
 				c.String("git-password"),
 				c.String("git-ssh-publickey-path"),
