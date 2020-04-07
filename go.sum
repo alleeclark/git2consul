@@ -82,6 +82,8 @@ github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORN
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
+github.com/libgit2/git2go v27.10.0+incompatible h1:P7zNuI907L1Nz7ifXcYKDw9Y8xCOLrnTbyH1gqxcIX8=
+github.com/libgit2/git2go v27.10.0+incompatible/go.mod h1:4bKN42efkbNYMZlvDfxGDxzl066GhpvIircZDsm8Y+Y=
 github.com/libgit2/git2go/v29 v29.0.2 h1:tejTEV+B3n48nx027dDUFMLQPSvKo+E1Y6WUZVlJvRo=
 github.com/libgit2/git2go/v29 v29.0.2/go.mod h1:GnXk1stNspaGKX8uisx1aGefUwLxzc6Ad+PfdVpEKhQ=
 github.com/mattn/go-colorable v0.0.9/go.mod h1:9vuHe8Xs5qXnSaW/c/ABM9alt+Vo+STaOChaDxuIBZU=

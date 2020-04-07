@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/golang/protobuf v1.3.4 // indirect
 	github.com/hashicorp/consul/api v1.3.0
+	github.com/libgit2/git2go v27.10.0+incompatible
 	github.com/libgit2/git2go/v29 v29.0.2
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.5.0
