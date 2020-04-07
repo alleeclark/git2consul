@@ -26,7 +26,8 @@ func (c *Collection) Pull(opts *git2go.CloneOptions, remoteName, branch string) 
 		logrus.WithField("error", err).Warning("failed fetching remote repository")
 		return c
 	}
-	remoteBranch, err := c.Repository.References.Lookup(branch)
+	rawRemoteBranchRef := fmt.Sprintf("refs/remotes/origin/%s", branch)
+	remoteBranch, err := c.Repository.References.Lookup(rawRemoteBranchRef)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"error":      err,
