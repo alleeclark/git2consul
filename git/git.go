@@ -69,7 +69,9 @@ func (c *Collection) Pull(opts *git2go.CloneOptions, remoteName, branch string) 
 
 	switch {
 	case analysis&git2go.MergeAnalysisFastForward != 0, analysis&git2go.MergeAnalysisNormal != 0:
-		if err := c.Repository.Merge(mergeHeads, nil, nil); err != nil {
+		mergeOpts, _ := git2go.DefaultMergeOptions()
+		mergeOpts.FileFavor = git2go.MergeFileFavorTheirs
+		if err := c.Repository.Merge(mergeHeads, &mergeOpts, opts.CheckoutOpts); err != nil {
 			logrus.WithError(err).Warning("failed to merge")
 			return c
 		}
@@ -166,7 +168,7 @@ func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredF
 		return nil
 	}
 	if len(c.Commits) == 1 {
-		logrus.Warningf("not enough deltas in the tree to continue")
+		logrus.Trace("not enough deltas in the tree to continue")
 		return nil
 	}
 	oldTree, err := c.Commits[0].Tree()
@@ -285,10 +287,8 @@ func CloneOptions(username, password, publickeyPath, privateKeyPath, passphrase 
 
 	cloneOptions := &git2go.CloneOptions{}
 	cloneOptions.FetchOptions = &git2go.FetchOptions{}
-	cloneOptions.CheckoutOpts = &git2go.CheckoutOpts{
-		Strategy: git2go.CheckoutForce,
-	}
-	cloneOptions.CheckoutOpts.Strategy = 1
+	cloneOptions.CheckoutOpts = &git2go.CheckoutOpts{}
+	cloneOptions.CheckoutOpts.Strategy = git2go.CheckoutForce
 	cloneOptions.FetchOptions.RemoteCallbacks = cbs
 	return cloneOptions
 }
