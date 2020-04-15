@@ -92,7 +92,7 @@ func (c *Collection) Pull(opts *git2go.CloneOptions, remoteName, branch string) 
 func Open(repoPath string) *Collection {
 	repo, err := git2go.OpenRepository(repoPath)
 	if err != nil {
-		logrus.WithField("error", err).Warning("failed opening repository")
+		logrus.WithError(err).Warning("failed opening repository")
 		return nil
 	}
 	return &Collection{nil, nil, repo}
@@ -105,12 +105,11 @@ func NewRepository(opt ...GitOptions) *Collection {
 	for _, f := range opt {
 		err := f(&opts)
 		if err != nil {
-			logrus.WithField("error", err).Warning("failed setting option")
+			logrus.WithError(err).Warning("failed setting option")
 			return nil
 		}
 	}
-	_, err := os.Stat(opts.pullDirectory)
-	if os.IsExist(err) {
+	if _, err := os.Stat(opts.pullDirectory); !os.IsNotExist(err) {
 		if repo := Open(opts.pullDirectory); repo == nil {
 			cloneOpts := CloneOptions(opts.username, opts.password, opts.publicKeyPath, opts.privateKeyPath, opts.passphrase, opts.fingerPrint)
 			if cloneOpts == nil {
@@ -121,12 +120,10 @@ func NewRepository(opt ...GitOptions) *Collection {
 				logrus.Debug("repository already found, so opening it")
 				return Open(opts.pullDirectory)
 			} else if err != nil {
-				logrus.WithFields(logrus.Fields{
-					"url":   opts.url,
-					"error": err,
-				}).Warning("failed cloning url after finding directory")
+				logrus.WithError(err).WithField("url", opts.url).Error("failed cloning url after finding directory")
 				return nil
 			}
+			logrus.Debug("returning a repo")
 			return &Collection{
 				Repository: repopository,
 			}
@@ -134,9 +131,10 @@ func NewRepository(opt ...GitOptions) *Collection {
 	}
 	logrus.WithFields(logrus.Fields{
 		"directory": opts.pullDirectory,
-	}).Debug("did not find an existing repo so creating the directory")
-	if mkirErr := os.MkdirAll(opts.pullDirectory, 0777); mkirErr != nil {
-		logrus.WithField("error", err).Debug("failed creating the directory")
+	}).Info("did not find an existing repo so creating the directory")
+	if err := os.MkdirAll(opts.pullDirectory, 0777); err != nil {
+		logrus.WithError(err).Error("failed creating the directory")
+		return nil
 	}
 	cloneOpts := CloneOptions(opts.username, opts.password, opts.publicKeyPath, opts.privateKeyPath, opts.passphrase, opts.fingerPrint)
 	if cloneOpts == nil {
@@ -145,6 +143,7 @@ func NewRepository(opt ...GitOptions) *Collection {
 	}
 	repoCollection, err := git2go.Clone(opts.url, opts.pullDirectory, cloneOpts)
 	if err != nil && strings.Contains(err.Error(), "exists and is not an empty directory") {
+		logrus.Infoln("actually found the repository")
 		return Open(opts.pullDirectory)
 	} else if err != nil {
 		logrus.WithFields(logrus.Fields{
@@ -162,6 +161,7 @@ func NewRepository(opt ...GitOptions) *Collection {
 type WithIgnoredFiles map[string][]byte
 
 //ListFileChanges returns a map of files that have changed based on filtered commmits found along with the contents
+//this also assumes stuff is sorted in order
 func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredFiles) map[string][]byte {
 	if len(c.Commits) == 0 {
 		logrus.Infof("no commits found to sync contents %d \n", len(c.Commits))
@@ -240,6 +240,12 @@ func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredF
 		}
 		fileChanges[diffDelta.NewFile.Path] = contents
 	}
+	//update commit list
+	var newCommit []*git2go.Commit
+	newCommit = append(newCommit, c.Commits[len(c.Commits)-1])
+	c.Commits = nil
+	c.Commits = newCommit
+	newCommit = nil
 	return fileChanges
 }
 

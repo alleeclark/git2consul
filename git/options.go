@@ -133,6 +133,10 @@ func (c *Collection) Filter(fn FilterFunc) *Collection {
 //ByCommitID filters by a given commit ID
 func ByCommitID(id *git2go.Oid) FilterFunc {
 	return func(c *Collection) bool {
+		if id.IsZero() {
+			logrus.Trace("no commit id found")
+			return false
+		}
 		commit, err := c.LookupCommit(id)
 		if err != nil {
 			logrus.WithFields(logrus.Fields{
@@ -147,11 +151,11 @@ func ByCommitID(id *git2go.Oid) FilterFunc {
 }
 
 //ByBranch filters by a given branch
-func ByBranch(name string) FilterFunc {
+func ByBranch(branchName string) FilterFunc {
 	return func(c *Collection) bool {
-		branch, err := c.Repository.LookupBranch(name, git2go.BranchAll)
+		branch, err := c.Repository.LookupBranch(branchName, git2go.BranchAll)
 		if err != nil {
-			logrus.WithFields(logrus.Fields{"name": name, "error": err}).Warning("failed finding branch")
+			logrus.WithError(err).WithField("name", branchName).Error("failed finding branch")
 			return false
 		}
 		c.Ref = branch.Reference
@@ -162,7 +166,7 @@ func ByBranch(name string) FilterFunc {
 //ByDate filters by a given date and returns commits in a given date
 func ByDate(date time.Time) FilterFunc {
 	return func(c *Collection) bool {
-		if c.Ref == nil {
+		if c.Ref == nil || date.IsZero() {
 			logrus.Warningln("failed finding ref of the current git collection. Make sure the branch is pushed to origin")
 			return false
 		}
@@ -194,6 +198,44 @@ func ByDate(date time.Time) FilterFunc {
 					oldCount++
 				}
 				continue
+			}
+			c.Commits = append(c.Commits, commit)
+		}
+		return true
+	}
+}
+
+//ByTopo sorts by topolgical order from the last commit in the collection
+func ByTopo() FilterFunc {
+	return func(c *Collection) bool {
+		if c.Ref == nil || c.Commits == nil {
+			logrus.WithField("commits", len(c.Commits)).Warning("did not find any refs or list of commits")
+			return false
+		}
+
+		revWalk, err := c.Repository.Walk()
+		if err != nil {
+			logrus.WithError(err).Warning("failed to walk the repo")
+			return false
+		}
+
+		if err := revWalk.PushGlob("*"); err != nil {
+			logrus.WithError(err).Warning("failed to push glob")
+			return false
+		}
+		if err := revWalk.Push(c.Ref.Target()); err != nil {
+			logrus.WithError(err).Warning("failed pushing git reference")
+		}
+		revWalk.Sorting(git2go.SortTopological)
+		id := &(git2go.Oid{})
+		for revWalk.Next(id) == nil {
+			commit, err := c.Repository.LookupCommit(id)
+			if err != nil {
+				logrus.WithError(err).WithFields(logrus.Fields{"id": id}).Warning("failed finding commit")
+				continue
+			}
+			if commit.Id().Equal(c.Commits[0].AsObject().Id()) {
+				break
 			}
 			c.Commits = append(c.Commits, commit)
 		}
