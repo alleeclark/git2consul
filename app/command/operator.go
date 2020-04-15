@@ -79,17 +79,18 @@ func setLog(context *cli.Context) error {
 	} else {
 		logrus.SetFormatter(&logrus.TextFormatter{
 			FullTimestamp: true,
+			ForceColors:   true,
 		})
 	}
 	logrus.SetLevel(lvl)
 	if err := os.MkdirAll(filepath.Dir(context.String("log-file")), 0666); err != nil {
-		logrus.WithField("error", err).Warning("unable to create log directory")
+		logrus.WithField("error", err).Error("unable to create log directory")
 		logrus.SetOutput(os.Stdout)
 		return nil
 	}
 	file, err := os.OpenFile(context.String("log-file"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
-		logrus.WithField("error", err).Warning("unable to create log file")
+		logrus.WithField("error", err).Error("unable to create log file")
 		logrus.SetOutput(os.Stdout)
 		return nil
 	}
