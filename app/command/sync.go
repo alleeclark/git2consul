@@ -17,7 +17,7 @@ var syncCommand = cli.Command{
 	ArgsUsage:   "[flags] <ref>",
 	Description: "fetch contents changes and sync to consul",
 	Flags: []cli.Flag{
-		&cli.Int64Flag{Name: "since", Value: 0, Usage: "sync interval to consul in seconds"},
+		&cli.Int64Flag{Name: "since", Value: 30, Usage: "sync interval to consul in seconds"},
 		&cli.StringFlag{Name: "commit-id", Value: "", Usage: "git commit id to filter by", EnvVars: []string{"GIT2CONSUL_COMMITID"}},
 		&cli.StringFlag{Name: "pre-shell", Value: "", Usage: "shell command to execute before syncing", Hidden: true},
 		&cli.StringFlag{Name: "post-shell", Value: "", Usage: "shell command to execute after syncing", Hidden: true}},
@@ -50,7 +50,7 @@ var syncCommand = cli.Command{
 		logrus.Debug("cloned the repository")
 		for {
 
-			time.Sleep(time.Second * 30)
+			time.Sleep(time.Second * time.Duration(c.Int64("since")))
 			logrus.Debug("running sync")
 			//since := time.Second * -time.Duration(c.Int64("since"))
 			//past := time.Now().Add(since)
@@ -93,7 +93,6 @@ var syncCommand = cli.Command{
 			}
 			logrus.WithField("fileschanged", len(fileChanges)).Info("synced")
 		}
-		return nil
 	},
 	After: func(c *cli.Context) error {
 		if c.String("post-shell") != "" {
