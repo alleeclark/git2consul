@@ -20,7 +20,7 @@ var syncCommand = cli.Command{
 	Description: "fetch contents changes and sync to consul",
 	Flags: []cli.Flag{
 		&cli.Int64Flag{Name: "since", Value: 30, Usage: "sync interval to consul in seconds"},
-		&cli.StringFlag{Name: "commit-id", Value: "", Usage: "git commit id to filter by", EnvVars: []string{"GIT2CONSUL_COMMITID"}},
+		&cli.StringFlag{Name: "commit-id", Value: "", Usage: "git commit id to filter by", EnvVars: []string{"GIT2CONSUL_COMMITID"}, Hidden: true},
 		&cli.StringFlag{Name: "pre-shell", Value: "", Usage: "shell command to execute before syncing", Hidden: true},
 		&cli.StringFlag{Name: "post-shell", Value: "", Usage: "shell command to execute after syncing", Hidden: true}},
 	Before: func(c *cli.Context) error {
@@ -81,9 +81,9 @@ var syncCommand = cli.Command{
 							"key": key,
 						}).Warning("failed adding content")
 					consulGitSyncedFailed.Inc()
-				} else {
-					consulGitSynced.Inc()
+					continue
 				}
+				consulGitSynced.Inc()
 			}
 			logrus.WithField("fileschanged", len(fileChanges)).Info("synced")
 		}

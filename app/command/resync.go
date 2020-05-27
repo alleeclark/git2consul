@@ -79,9 +79,9 @@ var resyncCommand = cli.Command{
 						"error":       err,
 					}).Warning("failed adding contents")
 					consulGitSyncedFailed.Inc()
-				} else {
-					consulGitSynced.Inc()
+					return nil
 				}
+				consulGitSynced.Inc()
 			}
 			return nil
 		})
