@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"git2consul/consul"
 	"git2consul/git"
@@ -70,9 +71,7 @@ var resyncCommand = cli.Command{
 					logrus.WithField("error", err).Warning("failed connecting to consul")
 				}
 				consulPath := c.String("consul-path") + path
-				if consulPath[0:1] == "/" {
-					consulPath = consulPath[1:len(consulPath)]
-				}
+				consulPath = strings.TrimLeft(consulPath, "/")
 				if ok, err := consulInteractor.Put(consulPath, bytes.TrimSpace(contents)); err != nil || !ok {
 					logrus.WithFields(logrus.Fields{
 						"path":        path,

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 
 	git2go "github.com/libgit2/git2go/v29"
@@ -18,12 +19,12 @@ func (c *Collection) Pull(opts *git2go.CloneOptions, remoteName, branch string) 
 	}
 	remote, err := c.Repository.Remotes.Lookup(remoteName)
 	if err != nil {
-		logrus.WithField("error", err).Warning("failed looking up remote repository")
+		logrus.WithError(err).Error("failed looking up remote repository")
 		return c
 	}
 	localBranchRef := fmt.Sprintf("refs/heads/%s", branch)
 	if err = remote.Fetch([]string{localBranchRef}, opts.FetchOptions, ""); err != nil {
-		logrus.WithField("error", err).Warning("failed fetching remote repository")
+		logrus.WithError(err).Error("failed fetching remote repository")
 		return c
 	}
 	rawRemoteBranchRef := fmt.Sprintf("refs/remotes/origin/%s", branch)
@@ -39,7 +40,7 @@ func (c *Collection) Pull(opts *git2go.CloneOptions, remoteName, branch string) 
 	if err != nil {
 		_, err := c.Repository.References.Create(localBranchRef, remoteBranch.Target(), true, "")
 		if err != nil {
-			logrus.WithError(err).Warning("failed creating local branch")
+			logrus.WithError(err).Error("failed creating local branch")
 			return c
 		}
 	}
@@ -57,14 +58,14 @@ func (c *Collection) Pull(opts *git2go.CloneOptions, remoteName, branch string) 
 
 	annotatedCommit, err := c.Repository.AnnotatedCommitFromRef(remoteBranch)
 	if err != nil {
-		logrus.WithError(err).Warning("failed getting annontated commit from remote branch")
+		logrus.WithError(err).Error("failed getting annontated commit from remote branch")
 		return c
 	}
 
 	mergeHeads := []*git2go.AnnotatedCommit{annotatedCommit}
 	analysis, _, err := c.Repository.MergeAnalysis(mergeHeads)
 	if err != nil {
-		logrus.WithError(err).Warning("failed peforming merge analysis")
+		logrus.WithError(err).Error("failed peforming merge analysis")
 	}
 
 	switch {
@@ -72,11 +73,11 @@ func (c *Collection) Pull(opts *git2go.CloneOptions, remoteName, branch string) 
 		mergeOpts, _ := git2go.DefaultMergeOptions()
 		mergeOpts.FileFavor = git2go.MergeFileFavorTheirs
 		if err := c.Repository.Merge(mergeHeads, &mergeOpts, opts.CheckoutOpts); err != nil {
-			logrus.WithError(err).Warning("failed to merge")
+			logrus.WithError(err).Error("failed to merge")
 			return c
 		}
 		if _, err = head.SetTarget(remoteBranch.Target(), ""); err != nil {
-			logrus.WithError(err).Warning("failed updating refs on heads (local) from remotes")
+			logrus.WithError(err).Error("failed updating refs on heads (local) from remotes")
 			return c
 		}
 	}
@@ -95,7 +96,12 @@ func Open(repoPath string) *Collection {
 		logrus.WithError(err).Warning("failed opening repository")
 		return nil
 	}
-	return &Collection{nil, nil, repo}
+	ref, err := repo.Head()
+	if err != nil {
+		logrus.WithError(err).Error("failed to get repo's head")
+	}
+	defer ref.Free()
+	return &Collection{nil, nil, repo, []string{}, ref.Target().String()}
 
 }
 
@@ -105,7 +111,7 @@ func NewRepository(opt ...GitOptions) *Collection {
 	for _, f := range opt {
 		err := f(&opts)
 		if err != nil {
-			logrus.WithError(err).Warning("failed setting option")
+			logrus.WithError(err).Error("failed setting option")
 			return nil
 		}
 	}
@@ -115,7 +121,7 @@ func NewRepository(opt ...GitOptions) *Collection {
 			if cloneOpts == nil {
 				logrus.Warningln("clone options do not exist")
 			}
-			repopository, err := git2go.Clone(opts.url, opts.pullDirectory, cloneOpts)
+			repository, err := git2go.Clone(opts.url, opts.pullDirectory, cloneOpts)
 			if err != nil && strings.Contains(err.Error(), "exists and is not an empty directory") {
 				logrus.Debug("repository already found, so opening it")
 				return Open(opts.pullDirectory)
@@ -124,8 +130,14 @@ func NewRepository(opt ...GitOptions) *Collection {
 				return nil
 			}
 			logrus.Debug("returning a repo")
+			ref, err := repository.Head()
+			if err != nil {
+				logrus.WithError(err).Error("failed to get repo's head")
+			}
+			defer ref.Free()
 			return &Collection{
-				Repository: repopository,
+				Repository: repository,
+				hash:       ref.Target().String(),
 			}
 		}
 	}
@@ -160,6 +172,25 @@ func NewRepository(opt ...GitOptions) *Collection {
 //WithIgnoredFiles type to make an optional parameter
 type WithIgnoredFiles map[string][]byte
 
+//ListFileChangesV2 will be what to use
+func (c *Collection) ListFileChangesV2(pullDir string) map[string][]byte {
+	if len(c.fileChanges) == 0 {
+		logrus.Info("there are no file changes made")
+		return nil
+	}
+	fileChanges := make(map[string][]byte)
+	for _, file := range c.fileChanges {
+		data, err := ioutil.ReadFile(filepath.Join(pullDir, file))
+		if err != nil {
+			logrus.WithError(err).Error("failed to get file changes")
+			continue
+		}
+		fileChanges[file] = data
+
+	}
+	return fileChanges
+}
+
 //ListFileChanges returns a map of files that have changed based on filtered commmits found along with the contents
 //this also assumes stuff is sorted in order
 func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredFiles) map[string][]byte {
@@ -181,19 +212,19 @@ func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredF
 	}
 	diffOptions, err := git2go.DefaultDiffOptions()
 	if err != nil {
-		logrus.WithField("error", err).Debug("failed getting diff options")
+		logrus.WithError(err).Error("failed getting diff options")
 		return nil
 	}
 
 	diff, err := c.DiffTreeToTree(oldTree, newTree, &diffOptions)
 	if err != nil {
-		logrus.WithField("error", err).Warning("failed diffing tree")
+		logrus.WithError(err).Error("failed diffing tree")
 		return nil
 	}
 
 	numOfDeltas, err := diff.NumDeltas()
 	if err != nil {
-		logrus.Warningf("failed getting num of deltas %v", err)
+		logrus.WithError(err).Error("failed getting num of deltas")
 		return nil
 	}
 	if numOfDeltas == 0 {

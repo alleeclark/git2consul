@@ -17,7 +17,7 @@ var operatorCommand = cli.Command{
 	Description: "management commands",
 	Flags:       []cli.Flag{&cli.StringFlag{Name: "service-id", Value: "git2consul", Usage: "name of the service to register in consul"}},
 	Subcommands: []*cli.Command{
-		&cli.Command{
+		{
 			Name: "register",
 			Action: func(c *cli.Context) error {
 				consulInteractor, err := consul.NewHandler(consul.Config(c.String("consul-addr"), c.String("consul-token")))
@@ -28,7 +28,7 @@ var operatorCommand = cli.Command{
 
 			},
 		},
-		&cli.Command{
+		{
 			Name: "deregister",
 			Action: func(c *cli.Context) error {
 				consulInteractor, err := consul.NewHandler(consul.Config(c.String("consul-addr"), c.String("consul-token")))
@@ -38,7 +38,7 @@ var operatorCommand = cli.Command{
 				return consulInteractor.ServiceDeregistation(c.String("service-id"))
 			},
 		},
-		&cli.Command{
+		{
 			Name:   "force-unlock",
 			Usage:  "force a consul unlock",
 			Hidden: true,
@@ -51,7 +51,7 @@ var operatorCommand = cli.Command{
 				return nil
 			},
 		},
-		&cli.Command{
+		{
 			Name:      "force-lock",
 			Usage:     "force a lock on consul",
 			Hidden:    true,

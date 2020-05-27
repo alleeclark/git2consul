@@ -5,6 +5,8 @@ import (
 	"git2consul/consul"
 	"git2consul/git"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -30,12 +32,6 @@ var syncCommand = cli.Command{
 	},
 	Action: func(c *cli.Context) error {
 		setLog(c)
-		defer func() {
-			if c.Bool("metrics") {
-				pushMetrics(c.String("pushgateway-addr"))
-				logrus.Debugln("metrics enabled")
-			}
-		}()
 		gitCollection := git.NewRepository(git.Username(c.String("git-user")),
 			git.Password(c.String("git-password")),
 			git.URL(c.String("git-url")),
@@ -62,9 +58,9 @@ var syncCommand = cli.Command{
 					c.String("git-ssh-privatekey-path"),
 					c.String("git-ssh-passpharse-path"),
 					[]byte(c.String("git-fingerprint-path"))),
-				c.String("git-remote"), c.String("git-branch")).Filter(git.ByBranch(c.String("git-branch"))).Filter(git.ByTopo())
+				c.String("git-remote"), c.String("git-branch")).Filter(git.ByBranch(c.String("git-branch"))).Filter(git.ByTopo()).Filter(git.ByHead())
 			consulGitReads.Inc()
-			fileChanges := gitCollection.ListFileChanges(c.String("git-dir"))
+			fileChanges := gitCollection.ListFileChangesV2(c.String("git-dir"))
 			if len(fileChanges) == 0 {
 				logrus.Debugln("no File changes")
 				continue
@@ -77,15 +73,13 @@ var syncCommand = cli.Command{
 			}
 
 			for key, val := range fileChanges {
-				consulPath := c.String("consul-path") + key
-				if consulPath[0:1] == "/" {
-					consulPath = consulPath[1:len(consulPath)]
-				}
+				consulPath := filepath.Join(c.String("consul-path"), key)
+				consulPath = strings.TrimLeft(consulPath, "/")
 				if ok, err := consulInteractor.Put(consulPath, bytes.TrimSpace(val)); err != nil || !ok {
-					logrus.WithFields(logrus.Fields{
-						"key":   key,
-						"error": err,
-					}).Warning("failed adding content")
+					logrus.WithError(err).WithFields(
+						logrus.Fields{
+							"key": key,
+						}).Warning("failed adding content")
 					consulGitSyncedFailed.Inc()
 				} else {
 					consulGitSynced.Inc()

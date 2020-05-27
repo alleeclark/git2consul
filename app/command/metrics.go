@@ -1,10 +1,12 @@
 package command
 
 import (
+	"net/http"
 	"os"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/client_golang/prometheus/push"
 	"github.com/sirupsen/logrus"
 )
@@ -64,6 +66,11 @@ func init() {
 	if os.Getenv("GIT2CONSUL_METRICS") == "true" {
 		registry.MustRegister(consulGitSynced, consulGitSyncedFailed, consulGitConnectionFailed, consulGitReads)
 	}
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		http.ListenAndServe(":2112", nil)
+	}()
+	logrus.WithField("path", "/metrics").Info("started metrics server on port %v", ":2112")
 }
 
 func pushMetrics(address string) {
