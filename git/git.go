@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 
 	git2go "github.com/libgit2/git2go/v29"
 	"github.com/sirupsen/logrus"
@@ -98,11 +97,6 @@ func Open(repoPath string) *Collection {
 		logrus.WithError(err).Warning("failed opening repository")
 		return nil
 	}
-	ref, err := repo.Head()
-	if err != nil {
-		logrus.WithError(err).Error("failed to get repo's head")
-	}
-	defer ref.Free()
 	return &Collection{nil, nil, repo}
 
 }
@@ -119,53 +113,27 @@ func NewRepository(opt ...GitOptions) *Collection {
 	}
 	_, err := os.Stat(opts.pullDirectory)
 	if err != nil {
-		if os.IsExist(err) {
-			if repo := Open(opts.pullDirectory); repo == nil {
-				cloneOpts := CloneOptions(opts.username, opts.password, opts.publicKeyPath, opts.privateKeyPath, opts.passphrase, opts.fingerPrint)
-				if cloneOpts == nil {
-					logrus.Warningln("clone options do not exist")
-				}
-				repository, err := git2go.Clone(opts.url, opts.pullDirectory, cloneOpts)
-				if err != nil && strings.Contains(err.Error(), "exists and is not an empty directory") {
-					logrus.Debug("repository already found, so opening it")
-					return Open(opts.pullDirectory)
-				} else if err != nil {
-					logrus.WithError(err).WithField("url", opts.url).Error("failed cloning url after finding directory")
-					return nil
-				}
-				logrus.Debug("returning a repo")
-				return &Collection{
-					Repository: repository,
-				}
+		if os.IsNotExist(err) {
+			cloneOpts := CloneOptions(opts.username, opts.password, opts.publicKeyPath, opts.privateKeyPath, opts.passphrase, opts.fingerPrint)
+			if cloneOpts == nil {
+				logrus.Warningln("clone options do not exist")
+			}
+			repository, err := git2go.Clone(opts.url, opts.pullDirectory, cloneOpts)
+			if err != nil {
+				logrus.WithError(err).Error("failed to clone repo")
+				return nil
+			}
+			logrus.Debug("returning a cloned repo")
+			return &Collection{
+				Repository: repository,
 			}
 		}
 	}
 	logrus.WithFields(logrus.Fields{
 		"directory": opts.pullDirectory,
-	}).Info("did not find an existing repo so creating the directory")
-	if err := os.MkdirAll(opts.pullDirectory, 0777); err != nil {
-		logrus.WithError(err).Error("failed creating the directory")
-		return nil
-	}
-	cloneOpts := CloneOptions(opts.username, opts.password, opts.publicKeyPath, opts.privateKeyPath, opts.passphrase, opts.fingerPrint)
-	if cloneOpts == nil {
-		logrus.Warningln("clone options do not exist")
-		return nil
-	}
-	repoCollection, err := git2go.Clone(opts.url, opts.pullDirectory, cloneOpts)
-	if err != nil && strings.Contains(err.Error(), "exists and is not an empty directory") {
-		logrus.Infoln("found an existing repository repository")
-		return Open(opts.pullDirectory)
-	} else if err != nil {
-		logrus.WithFields(logrus.Fields{
-			"error": err,
-			"url":   opts.url,
-		}).Error("failed cloning url")
-		return nil
-	}
-	return &Collection{
-		Repository: repoCollection,
-	}
+	}).Info("found an existing repo")
+
+	return Open(opts.pullDirectory)
 }
 
 //WithIgnoredFiles type to make an optional parameter
