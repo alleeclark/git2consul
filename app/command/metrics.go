@@ -62,20 +62,21 @@ var (
 	registry = prometheus.NewRegistry()
 )
 
-func init() {
-	if os.Getenv("GIT2CONSUL_METRICS") == "true" {
-		registry.MustRegister(consulGitSynced, consulGitSyncedFailed, consulGitConnectionFailed, consulGitReads)
-	}
+func metricsInit(port string) {
+	registry.MustRegister(consulGitSynced, consulGitSyncedFailed, consulGitConnectionFailed, consulGitReads)
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
-		http.ListenAndServe(":2112", nil)
+		http.ListenAndServe(":"+port, nil)
 	}()
-	logrus.WithField("path", "/metrics").Info("started metrics server on port %v", ":2112")
+	logrus.WithFields(logrus.Fields{
+		"path": "/metrics",
+		"port": port,
+	}).Info("started metrics server on port")
 }
 
 func pushMetrics(address string) {
 	pusher := push.New("git2consul", address).Gatherer(registry)
 	if err := pusher.Add(); err != nil {
-		logrus.WithField("error", err).Warning("could not push to pushgateway")
+		logrus.WithError(err).Error("could not push to pushgateway")
 	}
 }

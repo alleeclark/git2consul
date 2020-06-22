@@ -120,8 +120,6 @@ type Collection struct {
 	Commits []*git2go.Commit
 	Ref     *git2go.Reference
 	*git2go.Repository
-	fileChanges []string
-	hash        string
 }
 
 //Filter function implements the function to be filtered if true
@@ -240,47 +238,6 @@ func ByTopo() FilterFunc {
 				break
 			}
 			c.Commits = append(c.Commits, commit)
-		}
-		return true
-	}
-}
-
-//ByHead gets
-func ByHead() FilterFunc {
-	return func(c *Collection) bool {
-		c.Commits = nil
-		obj, err := c.Repository.RevparseSingle(c.hash)
-		if err != nil {
-			logrus.WithError(err).Error("failed to rev parse single head")
-		}
-		commit, err := obj.AsCommit()
-		if err != nil {
-			logrus.WithError(err).Error("error changing object as commit")
-			return false
-		}
-		tree, err := commit.AsTree()
-		if err != nil {
-			logrus.WithError(err).Error("error changing object as tree")
-			return false
-		}
-		diffOpts, err := git2go.DefaultDiffOptions()
-		if err != nil {
-			logrus.WithError(err).Error("failed getting default diff options")
-		}
-		diff, err := c.DiffTreeToWorkdir(tree, &diffOpts)
-		if err != nil {
-			logrus.WithError(err).Error("failed to diff tree to work dir")
-		}
-		deltas, err := diff.NumDeltas()
-		if err != nil {
-			logrus.WithError(err).Error("failed to get num of deltas")
-		}
-		for i := 0; i < deltas; i++ {
-			diffDelta, err := diff.GetDelta(i)
-			if err != nil {
-				logrus.WithError(err).Error("failed getting detla")
-			}
-			c.fileChanges = append(c.fileChanges, diffDelta.NewFile.Path)
 		}
 		return true
 	}

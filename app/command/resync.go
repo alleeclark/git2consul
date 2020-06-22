@@ -51,11 +51,10 @@ var resyncCommand = cli.Command{
 		if repo == nil {
 			return cli.Exit("could not intialize the repo", 1)
 		}
-		logrus.WithField("git-url", c.String("git-url")).Infoln("cloned git repository")
 		consulGitReads.Inc()
 		err := filepath.Walk(c.String("git-dir"), func(path string, info os.FileInfo, err error) error {
 			if err != nil {
-				logrus.WithField("git-dir", c.String("git-dir")).Warningf("failed to walk the directory %v", err)
+				logrus.WithError(err).WithField("git-dir", c.String("git-dir")).Error("failed to walk the directory")
 				return err
 			}
 			if !info.IsDir() {
@@ -63,13 +62,14 @@ var resyncCommand = cli.Command{
 				if err != nil {
 					logrus.WithFields(
 						logrus.Fields{"path": path, "error": err},
-					).Warning("failed reading file")
+					).Error("failed reading file")
 				}
 				consulInteractor, err := consul.NewHandler(consul.Config(c.String("consul-addr"), c.String("consul-token")))
 				consulGitConnectionFailed.Inc()
 				if err != nil {
-					logrus.WithField("error", err).Warning("failed connecting to consul")
+					logrus.WithError(err).Error("failed connecting to consul")
 				}
+				path = strings.TrimPrefix(path, c.String("git-dir"))
 				consulPath := c.String("consul-path") + path
 				consulPath = strings.TrimLeft(consulPath, "/")
 				if ok, err := consulInteractor.Put(consulPath, bytes.TrimSpace(contents)); err != nil || !ok {
@@ -77,7 +77,7 @@ var resyncCommand = cli.Command{
 						"path":        path,
 						"consul-path": consulPath,
 						"error":       err,
-					}).Warning("failed adding contents")
+					}).Error("failed adding contents")
 					consulGitSyncedFailed.Inc()
 					return nil
 				}
@@ -86,7 +86,7 @@ var resyncCommand = cli.Command{
 			return nil
 		})
 		if err != nil {
-			logrus.WithField("directory", c.String("git-dir")).Fatal("failed to read repository's path %s and sync to consul")
+			logrus.WithField("directory", c.String("git-dir")).Error("failed to read repository's path %s and sync to consul")
 			return cli.NewExitError(err.Error, 1)
 		}
 		return nil

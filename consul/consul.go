@@ -27,7 +27,7 @@ func (c *ConsulHandler) Lock(key string) <-chan struct{} {
 	}
 	lockCh, err := lock.Lock(stopCh)
 	if err != nil {
-		panic(err)
+		logrus.WithError(err).Error("failed to hold lock")
 	}
 	return lockCh
 }
@@ -36,12 +36,12 @@ func (c *ConsulHandler) Lock(key string) <-chan struct{} {
 func (c *ConsulHandler) Unlock(key string) bool {
 	lock, err := c.Client.LockKey(key)
 	if err != nil {
-		logrus.Warningln(err)
+		logrus.WithError(err).Error("failed to unlock key")
 		return false
 	}
 	for {
 		if err := lock.Unlock(); err != nil {
-			logrus.Warningf("Error occurred unlocking %v", err)
+			logrus.WithError(err).Error("occurred unlocking")
 			continue
 		}
 		break

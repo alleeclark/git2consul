@@ -29,6 +29,7 @@ func New() *cli.App {
 		altsrc.NewStringFlag(&cli.StringFlag{Name: "consul-path", Value: "", Usage: "consul path to sync "}),
 		&cli.StringFlag{Name: "consul-token", Value: "somestillytoken", EnvVars: []string{"CONSUL_TOKEN"}, Usage: "consul address to write to. Will use agent unless an env is set of CONSUL_TOKEN"},
 		altsrc.NewBoolFlag(&cli.BoolFlag{Name: "metrics", Usage: "send metrics to pushgateway", EnvVars: []string{"GIT2CONSUL_METRICS"}, Hidden: true}),
+		altsrc.NewStringFlag(&cli.StringFlag{Name: "metrics-port", Value: "2112", EnvVars: []string{"GIT2CONSUL_METRICS_PORT"}}),
 		altsrc.NewStringFlag(&cli.StringFlag{Name: "pushgateway-addr", Value: "localhost:9091", Usage: "push gateway address for metrics", Hidden: true}),
 		altsrc.NewStringFlag(&cli.StringFlag{Name: "log-level,l", Usage: "set the logging level [trace, debug, info, warn, error, fatal, panic]", Value: "debug"}),
 		altsrc.NewStringFlag(&cli.StringFlag{Name: "log-file", Usage: "logfile path", Value: "/var/git2consul/logs/git2consul.log"}),

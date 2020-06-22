@@ -46,13 +46,16 @@ func (c *Collection) Pull(opts *git2go.CloneOptions, remoteName, branch string) 
 	}
 	// need to add logging statements
 	if err = c.Repository.SetHead(localBranchRef); err != nil {
+		logrus.WithError(err).Error("failed to set head of local branch")
 		return c
 	}
 	if err = c.Repository.CheckoutHead(opts.CheckoutOpts); err != nil {
+		logrus.WithError(err).Error("failed to checkout head")
 		return c
 	}
 	head, err := c.Repository.Head()
 	if err != nil {
+		logrus.WithError(err).Error("failed to get repo's head")
 		return c
 	}
 
@@ -86,7 +89,6 @@ func (c *Collection) Pull(opts *git2go.CloneOptions, remoteName, branch string) 
 	defer c.Repository.StateCleanup()
 
 	return c
-
 }
 
 //Open repository
@@ -101,7 +103,7 @@ func Open(repoPath string) *Collection {
 		logrus.WithError(err).Error("failed to get repo's head")
 	}
 	defer ref.Free()
-	return &Collection{nil, nil, repo, []string{}, ref.Target().String()}
+	return &Collection{nil, nil, repo}
 
 }
 
@@ -115,29 +117,26 @@ func NewRepository(opt ...GitOptions) *Collection {
 			return nil
 		}
 	}
-	if _, err := os.Stat(opts.pullDirectory); !os.IsNotExist(err) {
-		if repo := Open(opts.pullDirectory); repo == nil {
-			cloneOpts := CloneOptions(opts.username, opts.password, opts.publicKeyPath, opts.privateKeyPath, opts.passphrase, opts.fingerPrint)
-			if cloneOpts == nil {
-				logrus.Warningln("clone options do not exist")
-			}
-			repository, err := git2go.Clone(opts.url, opts.pullDirectory, cloneOpts)
-			if err != nil && strings.Contains(err.Error(), "exists and is not an empty directory") {
-				logrus.Debug("repository already found, so opening it")
-				return Open(opts.pullDirectory)
-			} else if err != nil {
-				logrus.WithError(err).WithField("url", opts.url).Error("failed cloning url after finding directory")
-				return nil
-			}
-			logrus.Debug("returning a repo")
-			ref, err := repository.Head()
-			if err != nil {
-				logrus.WithError(err).Error("failed to get repo's head")
-			}
-			defer ref.Free()
-			return &Collection{
-				Repository: repository,
-				hash:       ref.Target().String(),
+	_, err := os.Stat(opts.pullDirectory)
+	if err != nil {
+		if os.IsExist(err) {
+			if repo := Open(opts.pullDirectory); repo == nil {
+				cloneOpts := CloneOptions(opts.username, opts.password, opts.publicKeyPath, opts.privateKeyPath, opts.passphrase, opts.fingerPrint)
+				if cloneOpts == nil {
+					logrus.Warningln("clone options do not exist")
+				}
+				repository, err := git2go.Clone(opts.url, opts.pullDirectory, cloneOpts)
+				if err != nil && strings.Contains(err.Error(), "exists and is not an empty directory") {
+					logrus.Debug("repository already found, so opening it")
+					return Open(opts.pullDirectory)
+				} else if err != nil {
+					logrus.WithError(err).WithField("url", opts.url).Error("failed cloning url after finding directory")
+					return nil
+				}
+				logrus.Debug("returning a repo")
+				return &Collection{
+					Repository: repository,
+				}
 			}
 		}
 	}
@@ -155,13 +154,13 @@ func NewRepository(opt ...GitOptions) *Collection {
 	}
 	repoCollection, err := git2go.Clone(opts.url, opts.pullDirectory, cloneOpts)
 	if err != nil && strings.Contains(err.Error(), "exists and is not an empty directory") {
-		logrus.Infoln("actually found the repository")
+		logrus.Infoln("found an existing repository repository")
 		return Open(opts.pullDirectory)
 	} else if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"error": err,
 			"url":   opts.url,
-		}).Warning("failed cloning url")
+		}).Error("failed cloning url")
 		return nil
 	}
 	return &Collection{
@@ -172,112 +171,22 @@ func NewRepository(opt ...GitOptions) *Collection {
 //WithIgnoredFiles type to make an optional parameter
 type WithIgnoredFiles map[string][]byte
 
-//ListFileChangesV2 will be what to use
-func (c *Collection) ListFileChangesV2(pullDir string) map[string][]byte {
-	if len(c.fileChanges) == 0 {
-		logrus.Info("there are no file changes made")
+func (c *Collection) ReadFile(gitDir, filePath string) []byte {
+	data, err := ioutil.ReadFile(filepath.Join(gitDir, filePath))
+	if err != nil {
+		logrus.WithError(err).Error("failed reading file")
 		return nil
 	}
-	fileChanges := make(map[string][]byte)
-	for _, file := range c.fileChanges {
-		data, err := ioutil.ReadFile(filepath.Join(pullDir, file))
-		if err != nil {
-			logrus.WithError(err).Error("failed to get file changes")
-			continue
-		}
-		fileChanges[file] = data
-
-	}
-	return fileChanges
+	return data
 }
 
-//ListFileChanges returns a map of files that have changed based on filtered commmits found along with the contents
-//this also assumes stuff is sorted in order
-func (c *Collection) ListFileChanges(pullDir string, ignoreFiles ...WithIgnoredFiles) map[string][]byte {
-	if len(c.Commits) == 0 {
-		logrus.Infof("no commits found to sync contents %d \n", len(c.Commits))
-		return nil
-	}
-	if len(c.Commits) == 1 {
-		logrus.Trace("not enough deltas in the tree to continue")
-		return nil
-	}
-	oldTree, err := c.Commits[0].Tree()
+func (c *Collection) GetHeadCommit() *git2go.Commit {
+	ref, err := c.Head()
 	if err != nil {
+		logrus.WithError(err).Error("failed getting head of repo")
 		return nil
 	}
-	newTree, err := c.Commits[len(c.Commits)-1].Tree()
-	if err != nil {
-		return nil
-	}
-	diffOptions, err := git2go.DefaultDiffOptions()
-	if err != nil {
-		logrus.WithError(err).Error("failed getting diff options")
-		return nil
-	}
-
-	diff, err := c.DiffTreeToTree(oldTree, newTree, &diffOptions)
-	if err != nil {
-		logrus.WithError(err).Error("failed diffing tree")
-		return nil
-	}
-
-	numOfDeltas, err := diff.NumDeltas()
-	if err != nil {
-		logrus.WithError(err).Error("failed getting num of deltas")
-		return nil
-	}
-	if numOfDeltas == 0 {
-		logrus.Infoln("no deltas found")
-		return nil
-	}
-	if pullDir[len(pullDir)-1:] == "/" {
-		pullDir = pullDir[:len(pullDir)-1]
-	}
-
-	fileChanges := make(map[string][]byte, numOfDeltas)
-	for delta := 0; delta < numOfDeltas; delta++ {
-		diffDelta, err := diff.GetDelta(delta)
-		if err != nil {
-			logrus.WithFields(logrus.Fields{
-				"delta": delta,
-				"error": err,
-			}).Warning("failed getting diff")
-		}
-		if len(ignoreFiles) > 0 {
-			for i := range ignoreFiles {
-				if _, ok := ignoreFiles[i][diffDelta.NewFile.Path]; !ok {
-					continue
-				}
-				contents, err := ioutil.ReadFile(pullDir + "/" + diffDelta.NewFile.Path)
-				if err != nil || os.IsNotExist(err) {
-					logrus.WithFields(logrus.Fields{
-						"error": err,
-						"path":  diffDelta.NewFile.Path,
-					}).Warning("did not map contents %s because it does not exist")
-					fileChanges[diffDelta.NewFile.Path] = nil
-				}
-				fileChanges[diffDelta.NewFile.Path] = contents
-			}
-
-		}
-		contents, err := ioutil.ReadFile(pullDir + "/" + diffDelta.NewFile.Path)
-		if err != nil || os.IsNotExist(err) {
-			logrus.WithFields(logrus.Fields{
-				"error": err,
-				"path":  diffDelta.NewFile.Path,
-			}).Warning("did not map contents %s because it does not exist")
-			fileChanges[diffDelta.NewFile.Path] = nil
-		}
-		fileChanges[diffDelta.NewFile.Path] = contents
-	}
-	//update commit list
-	var newCommit []*git2go.Commit
-	newCommit = append(newCommit, c.Commits[len(c.Commits)-1])
-	c.Commits = nil
-	c.Commits = newCommit
-	newCommit = nil
-	return fileChanges
+	return c.getCommit(ref.Target().String())
 }
 
 var defaultCloneOptions = options{

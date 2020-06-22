@@ -32,6 +32,9 @@ var syncCommand = cli.Command{
 	},
 	Action: func(c *cli.Context) error {
 		setLog(c)
+		if c.Bool("metrics") {
+			metricsInit(c.String("metrics-port"))
+		}
 		gitCollection := git.NewRepository(git.Username(c.String("git-user")),
 			git.Password(c.String("git-password")),
 			git.URL(c.String("git-url")),
@@ -43,14 +46,14 @@ var syncCommand = cli.Command{
 			return cli.NewExitError("did not get git repository", 1)
 		}
 		consulGitReads.Inc()
-		logrus.Debug("cloned the repository")
+		tip, err := gitCollection.Repository.Head()
+		if err != nil {
+			return err
+		}
+		startCommit := tip.Target().String()
 		for {
-
 			time.Sleep(time.Second * time.Duration(c.Int64("since")))
 			logrus.Debug("running sync")
-			//since := time.Second * -time.Duration(c.Int64("since"))
-			//past := time.Now().Add(since)
-			//logrus.Infof("past time is %s", past.UTC().String())
 			gitCollection = gitCollection.Pull(
 				git.CloneOptions(c.String("git-user"),
 					c.String("git-password"),
@@ -58,34 +61,54 @@ var syncCommand = cli.Command{
 					c.String("git-ssh-privatekey-path"),
 					c.String("git-ssh-passpharse-path"),
 					[]byte(c.String("git-fingerprint-path"))),
-				c.String("git-remote"), c.String("git-branch")).Filter(git.ByBranch(c.String("git-branch"))).Filter(git.ByTopo()).Filter(git.ByHead())
+				c.String("git-remote"), c.String("git-branch"))
 			consulGitReads.Inc()
-			fileChanges := gitCollection.ListFileChangesV2(c.String("git-dir"))
-			if len(fileChanges) == 0 {
-				logrus.Debugln("no File changes")
-				continue
-			}
-			//need to clean up
+			diffDetlas := gitCollection.DifftoHead(startCommit)
 			consulInteractor, err := consul.NewHandler(consul.Config(c.String("consul-addr"), c.String("consul-token")))
 			if err != nil {
-				logrus.WithError(err).Warning("failed connecting to consul")
+				logrus.WithError(err).Error("failed connecting to consul")
 				consulGitConnectionFailed.Inc()
+				continue
 			}
-
-			for key, val := range fileChanges {
-				consulPath := filepath.Join(c.String("consul-path"), key)
+			for _, diff := range diffDetlas {
+				consulPath := filepath.Join(c.String("consul-path"), diff.NewFile)
 				consulPath = strings.TrimLeft(consulPath, "/")
-				if ok, err := consulInteractor.Put(consulPath, bytes.TrimSpace(val)); err != nil || !ok {
-					logrus.WithError(err).WithFields(
-						logrus.Fields{
-							"key": key,
-						}).Warning("failed adding content")
-					consulGitSyncedFailed.Inc()
-					continue
+				switch diff.Status {
+				case "Deleted":
+					if ok, err := consulInteractor.Delete(filepath.Join(c.String("consul-path"), diff.OldFile)); err != nil || !ok {
+						logrus.WithError(err).WithFields(
+							logrus.Fields{
+								"old-file":    diff.OldFile,
+								"consul-path": c.String("consul-path"),
+							}).Error("failed adding content")
+						consulGitSyncedFailed.Inc()
+						continue
+					}
+					consulGitSynced.Inc()
+				default:
+					if ok, err := consulInteractor.Put(consulPath, bytes.TrimSpace(gitCollection.ReadFile(c.String("git-dir"), diff.NewFile))); err != nil || !ok {
+						logrus.WithError(err).WithFields(
+							logrus.Fields{
+								"new-file":    diff.NewFile,
+								"consul-path": c.String("consul-path"),
+							}).Error("failed adding content")
+						consulGitSyncedFailed.Inc()
+						continue
+					}
+					consulGitSynced.Inc()
 				}
-				consulGitSynced.Inc()
+				logrus.WithFields(logrus.Fields{
+					"delta-status": diff.Status,
+					"old-file":     diff.OldFile,
+					"new-file":     diff.NewFile,
+				}).Info("processed delta")
 			}
-			logrus.WithField("fileschanged", len(fileChanges)).Info("synced")
+			head, err := gitCollection.Head()
+			defer head.Free()
+			if err != nil {
+				logrus.WithError(err).Error("failed to get head after run")
+			}
+			startCommit = head.Target().String()
 		}
 	},
 	After: func(c *cli.Context) error {
