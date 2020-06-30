@@ -148,15 +148,6 @@ func (c *Collection) ReadFile(gitDir, filePath string) []byte {
 	return data
 }
 
-func (c *Collection) GetHeadCommit() *git2go.Commit {
-	ref, err := c.Head()
-	if err != nil {
-		logrus.WithError(err).Error("failed getting head of repo")
-		return nil
-	}
-	return c.getCommit(ref.Target().String())
-}
-
 var defaultCloneOptions = options{
 	username:       "git2consul",
 	password:       "",
@@ -170,11 +161,11 @@ var defaultCloneOptions = options{
 //TODOO make more flexible for different credential types
 func CloneOptions(username, password, publickeyPath, privateKeyPath, passphrase string, fingerprint []byte) *git2go.CloneOptions {
 	credentialsCallback := func(url string, username string, allowedTypes git2go.CredType) (*git2go.Cred, error) {
-		if password == "" {
+		if publickeyPath == "" || privateKeyPath == "" {
 			logrus.WithField("public-key-path", publickeyPath).Debugf("using sshkeys for auth")
 			return git2go.NewCredSshKey(username, publickeyPath, privateKeyPath, passphrase)
 		} else if password != "" {
-			logrus.Debugln("using user password aut")
+			logrus.Debugln("using user password auth")
 			return git2go.NewCredUserpassPlaintext(username, password)
 		} else {
 			logrus.Debugln("using default git credentials")
