@@ -35,3 +35,4 @@ git2consul operator register
 #### Features
 - Commit only changes to consul on an interval
 - Full sync
+- Prometheus metrics are pulled for the sync job and push metrics for the resyncing
